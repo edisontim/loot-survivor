@@ -1,5 +1,7 @@
+import { Adventurer } from "@/app/types";
 import * as starknet from "@scure/starknet";
 import { calculateLevel, formatItemName, getKeyFromValue } from ".";
+import { vitalityIncrease } from "../constants";
 import { GameData } from "../data/GameData";
 
 const MAX_ID = BigInt(75);
@@ -7,7 +9,7 @@ const U128_MAX = BigInt("340282366920938463463374607431768211455");
 
 interface Beast {
   encounter: string;
-  id: bigint;
+  id: number;
   type: string;
   tier: number;
   level: number;
@@ -18,6 +20,7 @@ interface Beast {
   specialName: string;
   criticalMultiplier: number;
   damage: number;
+  xp: number;
 }
 
 interface Encounter {
@@ -33,6 +36,7 @@ interface Encounter {
   specialName?: string;
   criticalMultiplier?: number;
   damage?: number;
+  xp: number;
 }
 
 interface Item {
@@ -58,6 +62,257 @@ interface BattleEvent {
   beastDamageType?: string;
   location?: string;
 }
+
+interface TreeNode {
+  flee: TreeNode | undefined;
+  fight: TreeNode | undefined;
+  explore: TreeNode | undefined;
+  state: Adventurer;
+}
+
+interface LeafNodeWithPath {
+  leafNode: TreeNode;
+  path: string[];
+}
+
+export const getLeafNodesWithPaths = (tree: TreeNode): LeafNodeWithPath[] => {
+  const leafNodesWithPaths: LeafNodeWithPath[] = [];
+
+  const traverse = (node: TreeNode, currentPath: string[]) => {
+    if (!node.flee && !node.fight && !node.explore) {
+      leafNodesWithPaths.push({ leafNode: node, path: currentPath });
+      return;
+    }
+
+    if (node.flee) {
+      traverse(node.flee, [...currentPath, "flee"]);
+    }
+    if (node.fight) {
+      traverse(node.fight, [...currentPath, "fight"]);
+    }
+    if (node.explore) {
+      traverse(node.explore, [...currentPath, "explore"]);
+    }
+  };
+
+  traverse(tree, []);
+  return leafNodesWithPaths;
+};
+
+const recurseTree = (
+  tree: TreeNode,
+  items: Item[],
+  adventurerEntropy: bigint,
+  hasBeast: boolean,
+  adventurerLevel: number
+) => {
+  let currentAdventurer = structuredClone(tree.state);
+  let xp = currentAdventurer.xp!;
+  if (!xp || xp === 0) {
+    xp = 4;
+  }
+
+  if (currentAdventurer.health! <= 0) {
+    return;
+  }
+  const level = BigInt(Math.floor(Math.sqrt(xp)));
+
+  if (level > adventurerLevel) {
+    return;
+  }
+  const currentEncounter = getNextEncounter(
+    xp,
+    adventurerEntropy,
+    items,
+    hasBeast
+  );
+  console.log(`XP for this encounter ${xp}`);
+  if (currentEncounter?.encounter === "Beast") {
+    if (tree.fight === undefined) {
+      const fightNode = processBeastEncounterCombat(
+        currentAdventurer,
+        currentEncounter,
+        items,
+        adventurerEntropy,
+        hasBeast
+      );
+      tree.fight = fightNode;
+      console.log(`adventurer's health after combat ${fightNode.state.health}`);
+
+      recurseTree(fightNode, items, adventurerEntropy, false, adventurerLevel);
+    }
+    if (tree.flee === undefined) {
+      const fleeNode = processBeastEncounterFlee(
+        currentAdventurer,
+        currentEncounter,
+        items,
+        adventurerEntropy,
+        hasBeast
+      );
+      tree.flee = fleeNode;
+      console.log(`adventurer's health after flee ${fleeNode.state.health}`);
+      recurseTree(fleeNode, items, adventurerEntropy, false, adventurerLevel);
+    }
+  } else if (currentEncounter?.encounter === "Obstacle") {
+    const obstacleNode = processObstacleEncounter(
+      currentAdventurer,
+      currentEncounter
+    );
+    tree.explore = obstacleNode;
+    console.log(
+      `adventurer's health after obstacle ${obstacleNode.state.health}`
+    );
+    recurseTree(obstacleNode, items, adventurerEntropy, false, adventurerLevel);
+  } else if (currentEncounter?.encounter === "Discovery") {
+    const discoveryNode = processDiscoveryEncounter(
+      currentAdventurer,
+      currentEncounter
+    );
+    tree.explore = discoveryNode;
+    console.log(
+      `adventurer's health after discovery ${discoveryNode.state.health}`
+    );
+    recurseTree(
+      discoveryNode,
+      items,
+      adventurerEntropy,
+      false,
+      adventurerLevel
+    );
+  }
+};
+
+export const getDecisionTree = (
+  adventurer: Adventurer,
+  items: Item[],
+  adventurerEntropy: bigint,
+  hasBeast: boolean,
+  adventurerLevel: number
+) => {
+  let tree: TreeNode = {
+    flee: undefined,
+    fight: undefined,
+    explore: undefined,
+    state: adventurer,
+  };
+  let iterator = tree;
+  recurseTree(iterator, items, adventurerEntropy, hasBeast, adventurerLevel);
+  return tree;
+};
+
+const processObstacleEncounter = (
+  currentAdventurer: Adventurer,
+  currentEncounter: Encounter
+) => {
+  const obstacleState = structuredClone(currentAdventurer);
+  if (currentEncounter.dodgeRoll! > currentAdventurer.intelligence!) {
+    obstacleState.health = obstacleState.health! - currentEncounter.damage!;
+  }
+  obstacleState.xp = currentEncounter.nextXp;
+  obstacleState.level = calculateLevel(obstacleState.xp);
+  const obstacleNode: TreeNode = {
+    flee: undefined,
+    fight: undefined,
+    explore: undefined,
+    state: obstacleState,
+  };
+  return obstacleNode;
+};
+
+const processBeastEncounterCombat = (
+  currentAdventurer: Adventurer,
+  currentEncounter: Encounter,
+  items: Item[],
+  adventurerEntropy: bigint,
+  hasBeast: boolean
+) => {
+  let battleState = structuredClone(currentAdventurer);
+  if (currentEncounter.dodgeRoll! > Number(currentAdventurer.wisdom)) {
+    console.log("ambush");
+    battleState.health = battleState.health! - currentEncounter.damage!;
+  }
+  console.log(currentEncounter);
+  const battleResult = mySimulateBattle(
+    items,
+    currentEncounter,
+    battleState,
+    adventurerEntropy
+  );
+  battleState.health = battleResult.healthLeft;
+  battleState.xp = currentEncounter.nextXp;
+  battleState.level = calculateLevel(battleState.xp);
+  battleState.gold! += getGoldReward(
+    items,
+    currentEncounter,
+    battleState.xp,
+    adventurerEntropy
+  );
+  const fightNode: TreeNode = {
+    flee: undefined,
+    fight: undefined,
+    explore: undefined,
+    state: battleState,
+  };
+  return fightNode;
+};
+
+const processBeastEncounterFlee = (
+  currentAdventurer: Adventurer,
+  currentEncounter: Encounter,
+  items: Item[],
+  adventurerEntropy: bigint,
+  hasBeast: boolean
+) => {
+  const fleeState = structuredClone(currentAdventurer);
+  if (!hasBeast && currentEncounter.dodgeRoll! > fleeState.intelligence!) {
+    fleeState.health = fleeState.health! - currentEncounter.damage!;
+  }
+  const fleeResult = simulateFlee(
+    items,
+    currentEncounter,
+    fleeState,
+    adventurerEntropy
+  );
+  fleeState.health = fleeResult.healthLeft;
+  fleeState.xp = (fleeState.xp || 0) + 1;
+  fleeState.level = calculateLevel(fleeState.xp);
+  const fleeNode: TreeNode = {
+    flee: undefined,
+    fight: undefined,
+    explore: undefined,
+    state: fleeState,
+  };
+  return fleeNode;
+};
+
+const processDiscoveryEncounter = (
+  currentAdventurer: Adventurer,
+  currentEncounter: Encounter
+) => {
+  const discoveryState = structuredClone(currentAdventurer);
+  if (currentEncounter.type === "Gold") {
+    discoveryState.gold = discoveryState.gold! + Number(currentEncounter.tier);
+  }
+  if (currentEncounter.type === "Health") {
+    const maxHealth = Math.min(
+      100 + discoveryState.vitality! * vitalityIncrease,
+      1023
+    );
+    discoveryState.health = Math.min(
+      maxHealth,
+      discoveryState.health! + Number(currentEncounter.tier)
+    );
+  }
+  discoveryState.xp = currentEncounter.nextXp;
+  discoveryState.level = calculateLevel(discoveryState.xp);
+  const discoveryNode: TreeNode = {
+    flee: undefined,
+    fight: undefined,
+    explore: undefined,
+    state: discoveryState,
+  };
+  return discoveryNode;
+};
 
 export function beastEncounters(
   xpList: number[],
@@ -158,7 +413,7 @@ export function getNextBigEncounter(
 ): Encounter {
   let newLevel = Math.floor(Math.sqrt(xp));
   if (newLevel > lvl) {
-    return { encounter: "levelup", type: "", tier: "", nextXp: xp + 1 };
+    return { encounter: "levelup", type: "", tier: "", nextXp: xp + 1, xp: xp };
   }
 
   let encounter = getNextEncounter(xp, adventurerEntropy, items);
@@ -418,7 +673,7 @@ function beastEncounter(
 
   return {
     encounter: "Beast",
-    id: beast_id,
+    id: Number(beast_id),
     type: beast_type,
     tier: Number(beast_tier),
     level: Number(beast_level),
@@ -426,6 +681,7 @@ function beastEncounter(
     location: ambush_location,
     dodgeRoll: Number(roll) + 1,
     nextXp: xp + Number(xp_reward),
+    xp,
     specialName,
     criticalMultiplier,
     damage,
@@ -482,6 +738,7 @@ function obstacleEncounter(
     nextXp: xp + Number(xp_reward),
     criticalMultiplier,
     damage,
+    xp,
   };
 }
 
@@ -518,6 +775,7 @@ function discoveryEncounter(
         ? `${Number(discovery_amount)}`
         : `${getKeyFromValue(gameData.ITEMS, formatItemName(discovery_item))}`,
     nextXp: xp + 1,
+    xp,
   };
 }
 
@@ -896,6 +1154,84 @@ function getSpecialName(seed: bigint): string {
   let special2 = 1 + Number(seed % BigInt(69));
   let special3 = 1 + Number(seed % BigInt(18));
   return `${ITEM_NAME_PREFIXES[special2]} ${ITEM_NAME_SUFFIXES[special3]}`;
+}
+
+export function mySimulateBattle(
+  items: Item[],
+  beast: any,
+  adventurer: any,
+  adventurerEntropy: bigint
+): { success: boolean; healthLeft: number; events: BattleEvent[] } {
+  let health = adventurer.health;
+  let beastHealth = beast.health;
+  let events: BattleEvent[] = [];
+  while (health > 0) {
+    let { rnd1, rnd2 } = getRandomnessWithHealth(
+      adventurer.xp,
+      health,
+      adventurerEntropy
+    );
+    let weapon = items.find((item) => item.slot === "Weapon");
+    let ring = items.find((item) => item.slot === "Ring");
+    let combatResult = calculateDamage(
+      weapon,
+      beast,
+      ring,
+      adventurer.strength,
+      adventurer.luck,
+      rnd1,
+      4
+    );
+
+    events.push({
+      type: "adventurer_attack",
+      totalDamage: combatResult.totalDamage,
+      isCriticalHit: combatResult.isCriticalHit,
+      beastDamageType: undefined,
+      location: undefined,
+    });
+
+    if (combatResult.totalDamage >= beastHealth) {
+      return {
+        success: true,
+        healthLeft: health,
+        events,
+      };
+    }
+
+    let beastCounter = beastCounterAttack(
+      items,
+      beast,
+      rnd1,
+      rnd2,
+      adventurer?.level
+    );
+
+    events.push({
+      type: "beast_attack",
+      totalDamage: beastCounter.damage,
+      isCriticalHit: beastCounter.isCrit,
+      beastDamageType: beastCounter.beastDamageType,
+      location: beastCounter.location,
+    });
+
+    if (beastCounter.damage >= health) {
+      return {
+        success: false,
+        healthLeft: 0,
+        events,
+      };
+    }
+
+    beastHealth -= combatResult.totalDamage;
+    health -= beastCounter.damage;
+  }
+
+  return {
+    success: false,
+    healthLeft: 0,
+    events,
+  };
 }
 
 export function simulateBattle(
