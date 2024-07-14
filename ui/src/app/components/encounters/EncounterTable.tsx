@@ -126,12 +126,18 @@ const EncounterTable = () => {
                 <th className="py-2 px-1 border-b border-terminal-green">
                   Next XP (Lvl)
                 </th>
+                <th className="py-2 px-1 border-b border-terminal-green">
+                  Ambush
+                </th>
+                <th className="py-2 px-1 border-b border-terminal-green">
+                  Gold
+                </th>
               </tr>
             </thead>
             <tbody>
               {adventurerEntropy ? (
                 React.Children.toArray(
-                  encounters.map((encounter: any) => {
+                  encounters.map((encounter: any, index: number) => {
                     let [special2, special3] = encounter.specialName?.split(
                       " "
                     ) || ["no", "no"];
@@ -298,6 +304,31 @@ const EncounterTable = () => {
                             {calculateLevel(encounter.nextXp)})
                           </span>
                         </td>
+                        <td className="py-2 border-b border-terminal-green">
+                          {encounter.encounter === "Obstacle" &&
+                            encounter.dodgeRoll > adventurer?.intelligence! && (
+                              <span className="flex justify-center">
+                                -{encounter.damage}hp
+                              </span>
+                            )}
+
+                          {encounter.encounter === "Beast" &&
+                            encounter.dodgeRoll > adventurer?.wisdom! && (
+                              <span className="flex justify-center">
+                                -{encounter.damage}hp
+                              </span>
+                            )}
+                        </td>
+                        <td className="py-2 border-b border-terminal-green">
+                          {encounter.encounter === "Beast" && (
+                            <span className="flex justify-center">
+                              +
+                              {Math.floor(
+                                (encounter.level * (6 - encounter.tier)) / 2
+                              )}
+                            </span>
+                          )}
+                        </td>
                       </tr>
                     );
                   })
@@ -310,17 +341,22 @@ const EncounterTable = () => {
             </tbody>
           </table>
         </div>
+
         <div className="ml-2 grid grid-cols-4 gap-2">
-          {leafNodesWithPaths.map((node) => {
+          {leafNodesWithPaths.map((node, index) => {
             return (
-              <React.Fragment>
-                <div className="max-w-24">Path {node.path.join("-")}</div>
+              <React.Fragment key={index}>
                 <div className="max-w-24">
-                  Health: {node.leafNode.state.health}
+                  Path {node.map((step) => step.path).join("-")}
                 </div>
-                <div className="max-w-24">Gold: {node.leafNode.state.gold}</div>
                 <div className="max-w-24">
-                  Level: {node.leafNode.state.level}
+                  Health: {node[node.length - 1].adventurer.health}
+                </div>
+                <div className="max-w-24">
+                  Gold: {node[node.length - 1].adventurer.gold}
+                </div>
+                <div className="max-w-24">
+                  Level: {node[node.length - 1].adventurer.level}
                 </div>
               </React.Fragment>
             );

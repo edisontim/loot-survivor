@@ -68,30 +68,43 @@ interface TreeNode {
   fight: TreeNode | undefined;
   explore: TreeNode | undefined;
   state: Adventurer;
+  encounter?: Encounter;
 }
 
-interface LeafNodeWithPath {
-  leafNode: TreeNode;
-  path: string[];
+interface Step {
+  encounter: Encounter;
+  path: string;
+  adventurer: Adventurer;
 }
 
-export const getLeafNodesWithPaths = (tree: TreeNode): LeafNodeWithPath[] => {
-  const leafNodesWithPaths: LeafNodeWithPath[] = [];
+export const getLeafNodesWithPaths = (tree: TreeNode): Step[][] => {
+  const leafNodesWithPaths: Step[][] = [];
 
-  const traverse = (node: TreeNode, currentPath: string[]) => {
+  const traverse = (node: TreeNode, currentSteps: Step[]) => {
+    const newStep: Step = {
+      encounter: node.encounter!,
+      path: "",
+      // path:
+      //   currentSteps.length > 0 ? currentSteps[currentSteps.length - 1].path : "",
+      adventurer: node.state,
+    };
+
     if (!node.flee && !node.fight && !node.explore) {
-      leafNodesWithPaths.push({ leafNode: node, path: currentPath });
+      leafNodesWithPaths.push([...currentSteps, newStep]);
       return;
     }
 
     if (node.flee) {
-      traverse(node.flee, [...currentPath, "flee"]);
+      traverse(node.flee, [...currentSteps, { ...newStep, path: "flee" }]);
     }
     if (node.fight) {
-      traverse(node.fight, [...currentPath, "fight"]);
+      traverse(node.fight, [...currentSteps, { ...newStep, path: "fight" }]);
     }
     if (node.explore) {
-      traverse(node.explore, [...currentPath, "explore"]);
+      traverse(node.explore, [
+        ...currentSteps,
+        { ...newStep, path: "explore" },
+      ]);
     }
   };
 
@@ -215,11 +228,12 @@ const processObstacleEncounter = (
     fight: undefined,
     explore: undefined,
     state: obstacleState,
+    encounter: currentEncounter,
   };
   return obstacleNode;
 };
 
-const processBeastEncounterCombat = (
+export const processBeastEncounterCombat = (
   currentAdventurer: Adventurer,
   currentEncounter: Encounter,
   items: Item[],
@@ -252,11 +266,12 @@ const processBeastEncounterCombat = (
     fight: undefined,
     explore: undefined,
     state: battleState,
+    encounter: currentEncounter,
   };
   return fightNode;
 };
 
-const processBeastEncounterFlee = (
+export const processBeastEncounterFlee = (
   currentAdventurer: Adventurer,
   currentEncounter: Encounter,
   items: Item[],
@@ -281,6 +296,7 @@ const processBeastEncounterFlee = (
     fight: undefined,
     explore: undefined,
     state: fleeState,
+    encounter: currentEncounter,
   };
   return fleeNode;
 };
