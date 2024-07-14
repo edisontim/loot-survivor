@@ -326,7 +326,7 @@ export const processBeastEncounterFlee = (
   hasBeast: boolean
 ) => {
   const fleeState = structuredClone(currentAdventurer);
-  if (!hasBeast && currentEncounter.dodgeRoll! > fleeState.intelligence!) {
+  if (!hasBeast && currentEncounter.dodgeRoll! > fleeState.wisdom!) {
     fleeState.health = fleeState.health! - currentEncounter.damage!;
   }
 
@@ -361,6 +361,7 @@ export const processBeastEncounterFlee = (
     state: fleeState,
     encounter: nextEncounter,
   };
+
   return fleeNode;
 };
 
@@ -1216,16 +1217,18 @@ export function getGoldReward(
     return 4;
   }
 
-  let seed = getRandomness(xp, adventurerEntropy).rnd1;
+  // let seed = getRandomness(xp, adventurerEntropy).rnd1;
 
   let ring = items.find(
     (item) => item.slot === "Ring" && item.item === "Gold Ring"
   );
 
-  let base_reward = Math.floor(((6 - beast.tier) * beast.level) / 2 / 2);
+  // let base_reward = Math.floor(((6 - beast.tier) * beast.level) / 2 / 2);
+  let base_reward = Math.floor(((6 - beast.tier) * beast.level) / 2);
 
   let bonus_base = Math.floor(base_reward / 4);
-  let bonus_multiplier = Number(seed % BigInt(5));
+  // let bonus_multiplier = Number(seed % BigInt(5));
+  let bonus_multiplier = 1;
 
   base_reward += Math.floor(bonus_base * bonus_multiplier);
 
