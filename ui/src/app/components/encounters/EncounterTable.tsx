@@ -107,11 +107,6 @@ const EncounterTable = () => {
 
     let newAdventurer = { ...adventurer };
 
-    // Apply purchased potions
-    if (potionAmount > 0) {
-      newAdventurer.health = newAdventurer.health! + potionAmount * 10;
-    }
-
     if (upgrades.Strength > 0) {
       newAdventurer.strength! += upgrades.Strength;
     }
@@ -132,6 +127,14 @@ const EncounterTable = () => {
     }
     if (upgrades.Charisma > 0) {
       newAdventurer.charisma! += upgrades.Charisma;
+    }
+
+    // Apply purchased potions
+    if (potionAmount > 0) {
+      newAdventurer.health = Math.min(
+        newAdventurer.health! + potionAmount * 10,
+        100 + newAdventurer.vitality! * vitalityIncrease
+      );
     }
 
     return newAdventurer;
