@@ -225,9 +225,6 @@ const EncounterTable = () => {
                     Next XP (Lvl)
                   </th>
                   <th className="py-2 px-1 border-b border-terminal-green">
-                    Ambush
-                  </th>
-                  <th className="py-2 px-1 border-b border-terminal-green">
                     Gold
                   </th>
                 </tr>
@@ -401,23 +398,6 @@ const EncounterTable = () => {
                               {encounter.nextXp} (
                               {calculateLevel(encounter.nextXp)})
                             </span>
-                          </td>
-                          <td className="py-2 border-b border-terminal-green">
-                            {encounter.encounter === "Obstacle" &&
-                              encounter.dodgeRoll >
-                                updatedAdventurer?.intelligence! && (
-                                <span className="flex justify-center">
-                                  -{encounter.damage}hp
-                                </span>
-                              )}
-
-                            {encounter.encounter === "Beast" &&
-                              encounter.dodgeRoll >
-                                updatedAdventurer?.wisdom! && (
-                                <span className="flex justify-center">
-                                  -{encounter.damage}hp
-                                </span>
-                              )}
                           </td>
                           <td className="py-2 border-b border-terminal-green">
                             {encounter.encounter === "Beast" && (
