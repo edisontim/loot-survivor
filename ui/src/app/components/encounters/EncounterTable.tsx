@@ -632,17 +632,17 @@ const EncounterTable = () => {
                               </td>
                               <td
                                 className={`py-2 border-b border-terminal-green ${
-                                  encounter.criticalMultiplier! > 3
+                                  encounter.isCritical!
                                     ? "text-red-500"
-                                    : encounter.criticalMultiplier! > 0
+                                    : encounter.isCritical!
                                     ? "text-terminal-yellow"
                                     : ""
                                 }`}
                               >
-                                {encounter.criticalMultiplier! >= 0 && (
+                                {encounter.isCritical! && (
                                   <span className="flex justify-center">
-                                    {encounter.criticalMultiplier! > 0
-                                      ? `${encounter.criticalMultiplier! * 20}%`
+                                    {encounter.isCritical!
+                                      ? `${encounter.isCritical}%`
                                       : "No"}
                                   </span>
                                 )}

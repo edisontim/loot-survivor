@@ -20,7 +20,7 @@ export function StarknetProvider({
 }) {
   function rpc(_chain: Chain) {
     return {
-      nodeUrl: networkConfig[network!].rpcUrl,
+      nodeUrl: networkConfig[network!].rpcUrl!,
     };
   }
 
@@ -32,7 +32,8 @@ export function StarknetProvider({
       chains={[sepolia]}
       connectors={connectors(
         networkConfig[network!].gameAddress,
-        networkConfig[network!].lordsAddress
+        networkConfig[network!].lordsAddress,
+        networkConfig[network!].ethAddress
       )}
       explorer={starkscan}
       provider={jsonRpcProvider({ rpc })}

@@ -1,5 +1,5 @@
 import { parseAdventurerState } from "./events.ts";
-import { encodeIntAsBytes, checkExistsInt } from "./encode.ts";
+import { checkExistsInt, getLevelFromXp } from "./encode.ts";
 
 export function insertAdventurer({
   id,
@@ -7,6 +7,7 @@ export function insertAdventurer({
   entropy,
   health,
   xp,
+  level,
   strength,
   dexterity,
   vitality,
@@ -14,6 +15,7 @@ export function insertAdventurer({
   wisdom,
   charisma,
   gold,
+  actions,
   weapon,
   chest,
   head,
@@ -25,15 +27,17 @@ export function insertAdventurer({
   beastHealth,
   statUpgrades,
   name,
-  startEntropy,
-  revealBlock,
+  birthDate,
+  deathDate,
+  goldenTokenId,
+  customRenderer,
   createdTime,
   lastUpdatedTime,
   timestamp,
 }: any) {
   const entity = {
-    id: checkExistsInt(BigInt(id)),
-    owner: checkExistsInt(BigInt(owner)),
+    id: checkExistsInt(parseInt(id)),
+    owner: checkExistsInt(BigInt(owner).toString(16)),
   };
 
   return {
@@ -41,29 +45,33 @@ export function insertAdventurer({
     update: {
       $set: {
         ...entity,
-        entropy: encodeIntAsBytes(BigInt(entropy)),
-        health: encodeIntAsBytes(BigInt(health)),
-        xp: encodeIntAsBytes(BigInt(xp)),
-        strength: encodeIntAsBytes(BigInt(strength)),
-        dexterity: encodeIntAsBytes(BigInt(dexterity)),
-        vitality: encodeIntAsBytes(BigInt(vitality)),
-        intelligence: encodeIntAsBytes(BigInt(intelligence)),
-        wisdom: encodeIntAsBytes(BigInt(wisdom)),
-        charisma: encodeIntAsBytes(BigInt(charisma)),
-        gold: encodeIntAsBytes(BigInt(gold)),
-        weapon: checkExistsInt(BigInt(weapon)),
-        chest: checkExistsInt(BigInt(chest)),
-        head: checkExistsInt(BigInt(head)),
-        waist: checkExistsInt(BigInt(waist)),
-        foot: checkExistsInt(BigInt(foot)),
-        hand: checkExistsInt(BigInt(hand)),
-        neck: checkExistsInt(BigInt(neck)),
-        ring: checkExistsInt(BigInt(ring)),
-        beastHealth: encodeIntAsBytes(BigInt(beastHealth)),
-        statUpgrades: checkExistsInt(BigInt(statUpgrades)),
-        name: checkExistsInt(BigInt(name)),
-        startEntropy: encodeIntAsBytes(BigInt(startEntropy)),
-        revealBlock: encodeIntAsBytes(BigInt(revealBlock)),
+        entropy: BigInt(entropy).toString(16),
+        health: parseInt(health),
+        xp: parseInt(xp),
+        level: level,
+        strength: parseInt(strength),
+        dexterity: parseInt(dexterity),
+        vitality: parseInt(vitality),
+        intelligence: parseInt(intelligence),
+        wisdom: parseInt(wisdom),
+        charisma: parseInt(charisma),
+        gold: parseInt(gold),
+        battleActionCount: parseInt(actions),
+        weapon: checkExistsInt(parseInt(weapon)),
+        chest: checkExistsInt(parseInt(chest)),
+        head: checkExistsInt(parseInt(head)),
+        waist: checkExistsInt(parseInt(waist)),
+        foot: checkExistsInt(parseInt(foot)),
+        hand: checkExistsInt(parseInt(hand)),
+        neck: checkExistsInt(parseInt(neck)),
+        ring: checkExistsInt(parseInt(ring)),
+        beastHealth: parseInt(beastHealth),
+        statUpgrades: parseInt(statUpgrades),
+        name: checkExistsInt(parseInt(name)),
+        birthDate: parseInt(birthDate),
+        deathDate: parseInt(deathDate),
+        goldenTokenId: checkExistsInt(parseInt(goldenTokenId)),
+        customRenderer: checkExistsInt(parseInt(customRenderer)),
         createdTime: createdTime,
         lastUpdatedTime: lastUpdatedTime,
         timestamp,
@@ -78,6 +86,7 @@ export function insertBeast({
   adventurerId,
   health,
   level,
+  tier,
   special1,
   special2,
   special3,
@@ -88,9 +97,9 @@ export function insertBeast({
   timestamp,
 }: any) {
   const entity = {
-    beast: checkExistsInt(BigInt(beast)),
-    adventurerId: checkExistsInt(BigInt(adventurerId)),
-    seed: encodeIntAsBytes(BigInt(seed)),
+    beast: checkExistsInt(parseInt(beast)),
+    adventurerId: checkExistsInt(parseInt(adventurerId)),
+    seed: BigInt(seed).toString(16),
   };
 
   return {
@@ -98,11 +107,12 @@ export function insertBeast({
     update: {
       $set: {
         ...entity,
-        health: encodeIntAsBytes(BigInt(health)),
-        level: checkExistsInt(BigInt(level)),
-        special1: checkExistsInt(BigInt(special1)),
-        special2: checkExistsInt(BigInt(special2)),
-        special3: checkExistsInt(BigInt(special3)),
+        health: parseInt(health),
+        level: checkExistsInt(parseInt(level)),
+        tier: checkExistsInt(parseInt(tier)),
+        special1: checkExistsInt(parseInt(special1)),
+        special2: checkExistsInt(parseInt(special2)),
+        special3: checkExistsInt(parseInt(special3)),
         slayed: slayed,
         slainOnTime: slainOnTime,
         createdTime: createdTime,
@@ -124,22 +134,22 @@ export function updateBeastHealth({
   timestamp,
 }: any) {
   const entity = {
-    beast: checkExistsInt(BigInt(beast)),
-    adventurerId: checkExistsInt(BigInt(adventurerId)),
-    seed: encodeIntAsBytes(BigInt(seed)),
+    beast: checkExistsInt(parseInt(beast)),
+    adventurerId: checkExistsInt(parseInt(adventurerId)),
+    seed: BigInt(seed).toString(16),
   };
 
   const newBeast = slayed
     ? {
         ...entity,
-        health: encodeIntAsBytes(BigInt(health)),
+        health: parseInt(health),
         slainOnTime: slainOnTime,
         lastUpdatedTime: lastUpdatedTime,
         timestamp,
       }
     : {
         ...entity,
-        health: encodeIntAsBytes(BigInt(health)),
+        health: parseInt(health),
         lastUpdatedTime: lastUpdatedTime,
         timestamp,
       };
@@ -161,38 +171,59 @@ export function updateAdventurer({
 }) {
   const { adventurer } = adventurerState;
   const entity = {
-    id: checkExistsInt(BigInt(adventurerState.adventurerId)),
-    owner: checkExistsInt(BigInt(adventurerState.owner)),
+    id: checkExistsInt(parseInt(adventurerState.adventurerId)),
+    owner: checkExistsInt(BigInt(adventurerState.owner).toString(16)),
   };
   return {
     entity,
     update: {
       $set: {
         ...entity,
-        entropy: encodeIntAsBytes(BigInt(adventurerState.adventurerEntropy)),
-        health: encodeIntAsBytes(BigInt(adventurer.health)),
-        xp: encodeIntAsBytes(BigInt(adventurer.xp)),
-        strength: encodeIntAsBytes(BigInt(adventurer.stats.strength)),
-        dexterity: encodeIntAsBytes(BigInt(adventurer.stats.dexterity)),
-        vitality: encodeIntAsBytes(BigInt(adventurer.stats.vitality)),
-        intelligence: encodeIntAsBytes(BigInt(adventurer.stats.intelligence)),
-        wisdom: encodeIntAsBytes(BigInt(adventurer.stats.wisdom)),
-        charisma: encodeIntAsBytes(BigInt(adventurer.stats.charisma)),
-        luck: encodeIntAsBytes(BigInt(adventurer.stats.luck)),
-        gold: encodeIntAsBytes(BigInt(adventurer.gold)),
-        weapon: checkExistsInt(BigInt(adventurer.equipment.weapon.id)),
-        chest: checkExistsInt(BigInt(adventurer.equipment.chest.id)),
-        head: checkExistsInt(BigInt(adventurer.equipment.head.id)),
-        waist: checkExistsInt(BigInt(adventurer.equipment.waist.id)),
-        foot: checkExistsInt(BigInt(adventurer.equipment.foot.id)),
-        hand: checkExistsInt(BigInt(adventurer.equipment.hand.id)),
-        neck: checkExistsInt(BigInt(adventurer.equipment.neck.id)),
-        ring: checkExistsInt(BigInt(adventurer.equipment.ring.id)),
-        beastHealth: encodeIntAsBytes(BigInt(adventurer.beastHealth)),
-        statUpgrades: encodeIntAsBytes(
-          BigInt(adventurer.statsUpgradesAvailable)
-        ),
+        entropy: BigInt(adventurerState.entropy).toString(16),
+        health: adventurer.health,
+        xp: adventurer.xp,
+        level: getLevelFromXp(adventurer.xp),
+        strength: adventurer.stats.strength,
+        dexterity: adventurer.stats.dexterity,
+        vitality: adventurer.stats.vitality,
+        intelligence: adventurer.stats.intelligence,
+        wisdom: adventurer.stats.wisdom,
+        charisma: adventurer.stats.charisma,
+        luck: adventurer.stats.luck,
+        gold: adventurer.gold,
+        battleActionCount: adventurer.battleActionCount,
+        weapon: checkExistsInt(adventurer.equipment.weapon.id),
+        chest: checkExistsInt(adventurer.equipment.chest.id),
+        head: checkExistsInt(adventurer.equipment.head.id),
+        waist: checkExistsInt(adventurer.equipment.waist.id),
+        foot: checkExistsInt(adventurer.equipment.foot.id),
+        hand: checkExistsInt(adventurer.equipment.hand.id),
+        neck: checkExistsInt(adventurer.equipment.neck.id),
+        ring: checkExistsInt(adventurer.equipment.ring.id),
+        beastHealth: adventurer.beastHealth,
+        statUpgrades: adventurer.statsUpgradesAvailable,
         lastUpdatedTime: timestamp,
+        timestamp,
+      },
+    },
+  };
+}
+
+export function updateAdventurerOwner({
+  adventurerId,
+  newOwner,
+  timestamp,
+}: any) {
+  const entity = {
+    id: checkExistsInt(BigInt(adventurerId)),
+  };
+
+  return {
+    entity,
+    update: {
+      $set: {
+        ...entity,
+        owner: checkExistsInt(BigInt(newOwner)),
         timestamp,
       },
     },
@@ -225,27 +256,27 @@ export function insertDiscovery({
   timestamp,
 }: any) {
   const entityDoc = {
-    txHash: checkExistsInt(BigInt(txHash)),
-    adventurerId: checkExistsInt(BigInt(adventurerId)),
-    adventurerHealth: checkExistsInt(BigInt(adventurerHealth)),
-    discoveryType: checkExistsInt(BigInt(discoveryType)),
-    subDiscoveryType: checkExistsInt(BigInt(subDiscoveryType)),
-    outputAmount: encodeIntAsBytes(BigInt(outputAmount)),
-    obstacle: checkExistsInt(BigInt(obstacle)),
-    obstacleLevel: checkExistsInt(BigInt(obstacleLevel)),
+    txHash: checkExistsInt(BigInt(txHash).toString(16)),
+    adventurerId: checkExistsInt(parseInt(adventurerId)),
+    adventurerHealth: checkExistsInt(parseInt(adventurerHealth)),
+    discoveryType: checkExistsInt(parseInt(discoveryType)),
+    subDiscoveryType: checkExistsInt(parseInt(subDiscoveryType)),
+    outputAmount: parseInt(outputAmount),
+    obstacle: checkExistsInt(parseInt(obstacle)),
+    obstacleLevel: checkExistsInt(parseInt(obstacleLevel)),
     dodgedObstacle: dodgedObstacle,
-    damageTaken: encodeIntAsBytes(BigInt(damageTaken)),
-    damageLocation: checkExistsInt(BigInt(damageLocation)),
-    xpEarnedAdventurer: checkExistsInt(BigInt(xpEarnedAdventurer)),
-    xpEarnedItems: checkExistsInt(BigInt(xpEarnedItems)),
-    entity: checkExistsInt(BigInt(entity)),
-    entityLevel: checkExistsInt(BigInt(entityLevel)),
-    entityHealth: encodeIntAsBytes(BigInt(entityHealth)),
-    special1: checkExistsInt(BigInt(special1)),
-    special2: checkExistsInt(BigInt(special2)),
-    special3: checkExistsInt(BigInt(special3)),
+    damageTaken: parseInt(damageTaken),
+    damageLocation: checkExistsInt(parseInt(damageLocation)),
+    xpEarnedAdventurer: checkExistsInt(parseInt(xpEarnedAdventurer)),
+    xpEarnedItems: checkExistsInt(parseInt(xpEarnedItems)),
+    entity: checkExistsInt(parseInt(entity)),
+    entityLevel: checkExistsInt(parseInt(entityLevel)),
+    entityHealth: parseInt(entityHealth),
+    special1: checkExistsInt(parseInt(special1)),
+    special2: checkExistsInt(parseInt(special2)),
+    special3: checkExistsInt(parseInt(special3)),
     ambushed: ambushed,
-    seed: encodeIntAsBytes(BigInt(seed)),
+    seed: BigInt(seed).toString(16),
     discoveryTime,
     timestamp,
   };
@@ -285,25 +316,25 @@ export function insertBattle({
   timestamp,
 }: any) {
   const entity = {
-    txHash: checkExistsInt(BigInt(txHash)),
-    adventurerId: checkExistsInt(BigInt(adventurerId)),
-    beast: checkExistsInt(BigInt(beast)),
-    seed: encodeIntAsBytes(BigInt(seed)),
-    beastHealth: encodeIntAsBytes(BigInt(beastHealth)),
-    beastLevel: checkExistsInt(BigInt(beastLevel)),
-    special1: checkExistsInt(BigInt(special1)),
-    special2: checkExistsInt(BigInt(special2)),
-    special3: checkExistsInt(BigInt(special3)),
-    adventurerHealth: encodeIntAsBytes(BigInt(adventurerHealth)),
-    attacker: checkExistsInt(BigInt(attacker)),
+    txHash: checkExistsInt(BigInt(txHash).toString(16)),
+    adventurerId: checkExistsInt(parseInt(adventurerId)),
+    beast: checkExistsInt(parseInt(beast)),
+    seed: BigInt(seed).toString(16),
+    beastHealth: parseInt(beastHealth),
+    beastLevel: checkExistsInt(parseInt(beastLevel)),
+    special1: checkExistsInt(parseInt(special1)),
+    special2: checkExistsInt(parseInt(special2)),
+    special3: checkExistsInt(parseInt(special3)),
+    adventurerHealth: parseInt(adventurerHealth),
+    attacker: checkExistsInt(parseInt(attacker)),
     fled: fled,
-    damageDealt: encodeIntAsBytes(BigInt(damageDealt)),
+    damageDealt: parseInt(damageDealt),
     criticalHit: criticalHit,
-    damageTaken: encodeIntAsBytes(BigInt(damageTaken)),
-    damageLocation: checkExistsInt(BigInt(damageLocation)),
-    xpEarnedAdventurer: encodeIntAsBytes(BigInt(xpEarnedAdventurer)),
-    xpEarnedItems: encodeIntAsBytes(BigInt(xpEarnedItems)),
-    goldEarned: encodeIntAsBytes(BigInt(goldEarned)),
+    damageTaken: parseInt(damageTaken),
+    damageLocation: checkExistsInt(parseInt(damageLocation)),
+    xpEarnedAdventurer: parseInt(xpEarnedAdventurer),
+    xpEarnedItems: parseInt(xpEarnedItems),
+    goldEarned: parseInt(goldEarned),
     discoveryTime: discoveryTime,
     blockTime: blockTime,
     timestamp: timestamp,
@@ -325,8 +356,12 @@ export function insertItem({
   adventurerId,
   owner,
   equipped,
+  tier,
+  slot,
+  type,
   ownerAddress,
   xp,
+  greatness,
   special1,
   special2,
   special3,
@@ -335,8 +370,8 @@ export function insertItem({
   timestamp,
 }: any) {
   const entity = {
-    item: checkExistsInt(BigInt(item)),
-    adventurerId: checkExistsInt(BigInt(adventurerId)),
+    item: checkExistsInt(parseInt(item)),
+    adventurerId: checkExistsInt(parseInt(adventurerId)),
   };
 
   return {
@@ -348,45 +383,57 @@ export function insertItem({
           owner: {
             $cond: [
               { $not: ["$owner"] },
-              checkExistsInt(BigInt(owner)),
+              checkExistsInt(parseInt(owner)),
               "$owner",
             ],
           },
           equipped: {
             $cond: [
               { $not: ["$owner"] },
-              checkExistsInt(BigInt(equipped)),
+              checkExistsInt(parseInt(equipped)),
               "$equipped",
             ],
+          },
+          tier: {
+            $cond: [{ $not: ["$owner"] }, parseInt(tier), "$tier"],
+          },
+          slot: {
+            $cond: [{ $not: ["$owner"] }, parseInt(slot), "$slot"],
+          },
+          type: {
+            $cond: [{ $not: ["$owner"] }, parseInt(type), "$type"],
           },
           ownerAddress: {
             $cond: [
               { $not: ["$owner"] },
-              checkExistsInt(BigInt(ownerAddress)),
+              checkExistsInt(BigInt(ownerAddress).toString(16)),
               "$ownerAddress",
             ],
           },
           xp: {
-            $cond: [{ $not: ["$owner"] }, encodeIntAsBytes(BigInt(xp)), "$xp"],
+            $cond: [{ $not: ["$owner"] }, parseInt(xp), "$xp"],
+          },
+          greatness: {
+            $cond: [{ $not: ["$owner"] }, parseInt(greatness), "$greatness"],
           },
           special1: {
             $cond: [
               { $not: ["$owner"] },
-              checkExistsInt(BigInt(special1)),
+              checkExistsInt(parseInt(special1)),
               "$special1",
             ],
           },
           special2: {
             $cond: [
               { $not: ["$owner"] },
-              checkExistsInt(BigInt(special2)),
+              checkExistsInt(parseInt(special2)),
               "$special2",
             ],
           },
           special3: {
             $cond: [
               { $not: ["$owner"] },
-              checkExistsInt(BigInt(special3)),
+              checkExistsInt(parseInt(special3)),
               "$special3",
             ],
           },
@@ -403,8 +450,8 @@ export function insertItem({
 
 export function updateItemXP({ item, adventurerId, xp }: any) {
   const entity = {
-    item: checkExistsInt(BigInt(item)),
-    adventurerId: checkExistsInt(BigInt(adventurerId)),
+    item: checkExistsInt(parseInt(item)),
+    adventurerId: checkExistsInt(parseInt(adventurerId)),
   };
 
   if (entity.item) {
@@ -413,7 +460,8 @@ export function updateItemXP({ item, adventurerId, xp }: any) {
       update: {
         $set: {
           ...entity,
-          xp: encodeIntAsBytes(BigInt(xp)),
+          xp: parseInt(xp),
+          greatness: getLevelFromXp(xp),
           timestamp: new Date().toISOString(),
         },
       },
@@ -496,8 +544,8 @@ export function updateItemSpecials({
   special3,
 }: any) {
   const entity = {
-    item: checkExistsInt(BigInt(item)),
-    adventurerId: checkExistsInt(BigInt(adventurerId)),
+    item: checkExistsInt(parseInt(item)),
+    adventurerId: checkExistsInt(parseInt(adventurerId)),
   };
 
   return {
@@ -505,9 +553,9 @@ export function updateItemSpecials({
     update: {
       $set: {
         ...entity,
-        special1: checkExistsInt(BigInt(special1)),
-        special2: checkExistsInt(BigInt(special2)),
-        special3: checkExistsInt(BigInt(special3)),
+        special1: checkExistsInt(parseInt(special1)),
+        special2: checkExistsInt(parseInt(special2)),
+        special3: checkExistsInt(parseInt(special3)),
       },
     },
   };
@@ -515,7 +563,7 @@ export function updateItemSpecials({
 
 export function insertHighScore({ adventurerId, timestamp, totalPayout }: any) {
   const entity = {
-    adventurerId: checkExistsInt(BigInt(adventurerId)),
+    adventurerId: checkExistsInt(parseInt(adventurerId)),
   };
 
   return {
@@ -530,9 +578,26 @@ export function insertHighScore({ adventurerId, timestamp, totalPayout }: any) {
   };
 }
 
+export function updateItemsOwner({ adventurerId, timestamp, newOwner }: any) {
+  const entity = {
+    adventurerId: checkExistsInt(parseInt(adventurerId)),
+  };
+
+  return {
+    entity,
+    update: {
+      $set: {
+        ...entity,
+        ownerAddress: checkExistsInt(BigInt(newOwner).toString(16)),
+        timestamp,
+      },
+    },
+  };
+}
+
 export function updateTotalPayout({ adventurerId, timestamp, newPayout }: any) {
   const entity = {
-    adventurerId: checkExistsInt(BigInt(adventurerId)),
+    adventurerId: checkExistsInt(parseInt(adventurerId)),
   };
 
   return {
@@ -544,41 +609,6 @@ export function updateTotalPayout({ adventurerId, timestamp, newPayout }: any) {
       },
       $inc: {
         totalPayout: parseInt(newPayout),
-      },
-    },
-  };
-}
-
-export function insertEntropy({
-  prevHash,
-  prevBlockNumber,
-  prevBlockTimestamp,
-  prevNextRotationBlock,
-  newHash,
-  newBlockNumber,
-  newBlockTimestamp,
-  newNextRotationBlock,
-  blocksPerHour,
-  currentTimestamp,
-}: any) {
-  const entity = {
-    prevHash: checkExistsInt(BigInt(prevHash)),
-    prevBlockNumber: prevBlockNumber,
-    prevBlockTimestamp: prevBlockTimestamp,
-    prevNextRotationBlock: prevNextRotationBlock,
-    newHash: checkExistsInt(BigInt(newHash)),
-    newBlockNumber: newBlockNumber,
-    newBlockTimestamp: newBlockTimestamp,
-    newNextRotationBlock: newNextRotationBlock,
-    blocksPerHour: blocksPerHour,
-    currentTimestamp: currentTimestamp,
-  };
-
-  return {
-    entity,
-    update: {
-      $set: {
-        ...entity,
       },
     },
   };

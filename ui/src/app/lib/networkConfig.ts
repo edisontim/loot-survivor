@@ -2,21 +2,23 @@ export const networkConfig = {
   sepolia: {
     rpcUrl:
       "https://starknet-sepolia.blastapi.io/5ef61753-e7c1-4593-bc62-97fdf96f8de5",
-    rpcAPIKey: "5ef61753-e7c1-4593-bc62-97fdf96f8de5",
     lsGQLURL: "https://ls-indexer-sepolia.provable.games/graphql",
     tokensGQLURL: "https://testnet.realms.world/api/graphql",
     ethAddress:
       "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
     gameAddress:
-      "0x003da0f3240324394ffad24fe8716c82d2101b6e37c35f9feadd0f853bd2dec5",
+      "0x0046506cccd3ffb110bc04445d25d94f1d26d645a30e6ac8a17c24e084bed08b",
     lordsAddress:
-      "0x04b359a3b5972e4a05348ce46ae63d0d1ee98e6d14b93148d1d4229243aa2308",
+      "0x019c92fa87f4d5e3bE25C3DD6a284f30282a07e87cd782f5Fd387B82c8142017",
     beastsAddress:
       "0x0468e7a1761b65c891207aeb7cfc044044d9a61fc22c71d46a7bf4dbb67c607a",
     goldenTokenAddress:
       "0x07626660faba349aad9ad2aaa0ff8645c079fa8e043a168d640d92472806eeac",
     revenueAddress:
       "0x0314924118945405ac0bcd6181457712795c0effc29d8dd3be86d3f3ec62adc1",
+    pragmaAddress:
+      "0x036031daa264c24520b11d93af622c848b2499b66b41d611bac95e13cfca131a",
+    rendererAddress: "0x0",
     appUrl: "https://sepolia.lootsurvivor.io",
     beastsViewer: "https://testnet.realms.world/collection/beasts",
     goldenTokenMintUrl: "https://testnet.realms.world/collection/goldenToken",
@@ -29,7 +31,6 @@ export const networkConfig = {
   mainnet: {
     rpcUrl:
       "https://starknet-mainnet.blastapi.io/5ef61753-e7c1-4593-bc62-97fdf96f8de5",
-    rpcAPIKey: "5ef61753-e7c1-4593-bc62-97fdf96f8de5",
     lsGQLURL: "https://ls-indexer-mainnet.provable.games/graphql",
     tokensGQLURL: "https://realms.world/api/graphql",
     ethAddress:
@@ -44,6 +45,10 @@ export const networkConfig = {
       "0x07626660faba349aad9ad2aaa0ff8645c079fa8e043a168d640d92472806eeac",
     revenueAddress:
       "0x0314924118945405ac0bcd6181457712795c0effc29d8dd3be86d3f3ec62adc1",
+    pragmaAddress:
+      "0x036031daa264c24520b11d93af622c848b2499b66b41d611bac95e13cfca131a",
+    rendererAddress:
+      "0x036031daa264c24520b11d93af622c848b2499b66b41d611bac95e13cfca131a",
     appUrl: "https://lootsurvivor.io/",
     beastsViewer: "https://realms.world/collection/beasts",
     goldenTokenMintUrl: "https://realms.world/collection/goldenToken",
@@ -55,17 +60,18 @@ export const networkConfig = {
   },
   katana: {
     rpcUrl: "https://ls-katana.provable.games:5443/",
-    rpcAPIKey: "",
     lsGQLURL: "https://ls-katana.provable.games:8080/graphql",
     tokensGQLURL: "",
     ethAddress: "0x0",
     gameAddress:
-      "0x026342b32760ca617d7c8b1211a2520bc232a4c348240ae3fa0270bd5f5dddfd",
+      "0x06447d0ece46fe0e04107183aec3436ae0c12a00a3a6cb44f229984a28e8176d",
     lordsAddress: "0x0",
     beastsAddress: "0x0",
     goldenTokenAddress: "0x0",
     revenueAddress: "0x0",
-    appUrl: "https://lootsurvivor.io/",
+    pragmaAddress: "0x0",
+    rendererAddress: "0x0",
+    appUrl: "https://sepolia.lootsurvivor.io",
     beastsViewer: "",
     goldenTokenMintUrl: "",
     blockExplorerUrl: "",
@@ -89,6 +95,8 @@ export const networkConfig = {
     beastsAddress: "0x0",
     goldenTokenAddress: "0x0",
     revenueAddress: "0x0",
+    pragmaAddress: "0x0",
+    rendererAddress: "0x0",
     appUrl: "http://localhost:3000/",
     beastsViewer: "",
     goldenTokenMintUrl: "",

@@ -1,8 +1,8 @@
 "use client";
-import { useConnect, useContract } from "@starknet-react/core";
+import { useConnect, useContract, useProvider } from "@starknet-react/core";
 import { sepolia } from "@starknet-react/chains";
 import { constants } from "starknet";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import ActionsScreen from "@/app/containers/ActionsScreen";
 import AdventurerScreen from "@/app/containers/AdventurerScreen";
 import InventoryScreen from "@/app/containers/InventoryScreen";
@@ -10,7 +10,7 @@ import LeaderboardScreen from "@/app/containers/LeaderboardScreen";
 import EncountersScreen from "@/app/containers/EncountersScreen";
 import GuideScreen from "@/app/containers/GuideScreen";
 import UpgradeScreen from "@/app/containers/UpgradeScreen";
-import { padAddress } from "@/app/lib/utils";
+import { indexAddress, padAddress } from "@/app/lib/utils";
 import { TxActivity } from "@/app/components/navigation/TxActivity";
 import useLoadingStore from "@/app/hooks/useLoadingStore";
 import useAdventurerStore from "@/app/hooks/useAdventurerStore";
@@ -41,11 +41,12 @@ import {
   getGoldenTokensByOwner,
 } from "@/app/hooks/graphql/queries";
 import NetworkSwitchError from "@/app/components/navigation/NetworkSwitchError";
-import { syscalls } from "@/app/lib/utils/syscalls";
+import { useSyscalls } from "@/app/lib/utils/syscalls";
 import Game from "@/app/abi/Game.json";
 import Lords from "@/app/abi/Lords.json";
 import EthBalanceFragment from "@/app/abi/EthBalanceFragment.json";
 import Beasts from "@/app/abi/Beasts.json";
+import Pragma from "@/app/abi/Pragma.json";
 import ScreenMenu from "@/app/components/menu/ScreenMenu";
 import { checkArcadeConnector } from "@/app/lib/connectors";
 import Header from "@/app/components/navigation/Header";
@@ -62,6 +63,8 @@ import EncounterTable from "@/app/components/encounters/EncounterTable";
 import { ProfileDialog } from "@/app/components/profile/ProfileDialog";
 import TokenLoader from "@/app/components/animations/TokenLoader";
 import CartridgeConnector from "@cartridge/connector";
+import { VRF_WAIT_TIME } from "@/app/lib/constants";
+import InterludeScreen from "@/app/containers/InterludeScreen";
 
 const allMenuItems: Menu[] = [
   { id: 1, label: "Start", screen: "start", disabled: false },
@@ -97,9 +100,13 @@ function Home() {
   const network = useUIStore((state) => state.network);
   const onKatana = useUIStore((state) => state.onKatana);
   const { account, address, isConnected } = useNetworkAccount();
+  const { provider } = useProvider();
   const isMuted = useUIStore((state) => state.isMuted);
   const adventurer = useAdventurerStore((state) => state.adventurer);
   const setAdventurer = useAdventurerStore((state) => state.setAdventurer);
+  const updateAdventurerStats = useAdventurerStore(
+    (state) => state.updateAdventurerStats
+  );
   const calls = useTransactionCartStore((state) => state.calls);
   const screen = useUIStore((state) => state.screen);
   const setScreen = useUIStore((state) => state.setScreen);
@@ -131,6 +138,8 @@ function Home() {
     (state) => state.setAdventurerEntropy
   );
   const showProfile = useUIStore((state) => state.showProfile);
+  const itemEntropy = useUIStore((state) => state.itemEntropy);
+  const setItemEntropy = useUIStore((state) => state.setItemEntropy);
 
   const { contract: gameContract } = useContract({
     address: networkConfig[network!].gameAddress,
@@ -147,6 +156,10 @@ function Home() {
   const { contract: beastsContract } = useContract({
     address: networkConfig[network!].beastsAddress,
     abi: Beasts,
+  });
+  const { contract: pragmaContract } = useContract({
+    address: networkConfig[network!].pragmaAddress,
+    abi: Pragma,
   });
 
   const { addTransaction } = useTransactionManager();
@@ -167,7 +180,12 @@ function Home() {
   const setDeathMessage = useLoadingStore((state) => state.setDeathMessage);
   const showDeathDialog = useUIStore((state) => state.showDeathDialog);
   const setStartOption = useUIStore((state) => state.setStartOption);
+  const entropyReady = useUIStore((state) => state.entropyReady);
   const setEntropyReady = useUIStore((state) => state.setEntropyReady);
+  const fetchUnlocksEntropy = useUIStore((state) => state.fetchUnlocksEntropy);
+  const setFetchUnlocksEntropy = useUIStore(
+    (state) => state.setFetchUnlocksEntropy
+  );
   const adventurerEntropy = useUIStore((state) => state.adventurerEntropy);
   const [accountChainId, setAccountChainId] = useState<
     constants.StarknetChainId | undefined
@@ -197,9 +215,8 @@ function Home() {
     }
   }, [connector]);
 
-  const [ethBalance, setEthBalance] = useState<bigint>(BigInt(0));
-  const [lordsBalance, setLordsBalance] = useState<bigint>(BigInt(0));
-  const [costToPlay, setCostToPlay] = useState<bigint | undefined>();
+  const [ethBalance, setEthBalance] = useState(BigInt(0));
+  const [lordsBalance, setLordsBalance] = useState(BigInt(0));
 
   const getBalances = async () => {
     const balances = await fetchBalances(
@@ -235,11 +252,13 @@ function Home() {
     multicall,
     mintLords,
     withdraw,
-  } = syscalls({
+  } = useSyscalls({
     gameContract: gameContract!,
     ethContract: ethContract!,
     lordsContract: lordsContract!,
     beastsContract: beastsContract!,
+    pragmaContract: pragmaContract!,
+    rendererContractAddress: networkConfig[network!].rendererAddress,
     addTransaction,
     queryData: data,
     resetData,
@@ -258,7 +277,7 @@ function Home() {
     setScreen,
     setAdventurer,
     setStartOption,
-    ethBalance: ethBalance,
+    ethBalance,
     showTopUpDialog,
     setTopUpAccount,
     account: account!,
@@ -270,7 +289,8 @@ function Home() {
     setIsMintingLords,
     setIsWithdrawing,
     setEntropyReady,
-    rpc_addr: networkConfig[network!].rpcUrl,
+    setFetchUnlocksEntropy,
+    provider,
     network,
   });
 
@@ -290,12 +310,12 @@ function Home() {
 
   const ownerVariables = useMemo(() => {
     return {
-      owner: owner,
+      owner: indexAddress(owner),
     };
   }, [owner]);
 
   const adventurersData = useCustomQuery(
-    networkConfig[network!].lsGQLURL!,
+    network,
     "adventurersByOwnerQuery",
     getAdventurersByOwner,
     ownerVariables,
@@ -309,35 +329,35 @@ function Home() {
   }, [adventurer?.id ?? 0]);
 
   useCustomQuery(
-    networkConfig[network!].lsGQLURL!,
+    network,
     "adventurerByIdQuery",
     getAdventurerById,
     adventurerVariables
   );
 
   useCustomQuery(
-    networkConfig[network!].lsGQLURL!,
+    network,
     "latestDiscoveriesQuery",
     getLatestDiscoveries,
     adventurerVariables
   );
 
   useCustomQuery(
-    networkConfig[network!].lsGQLURL!,
+    network,
     "itemsByAdventurerQuery",
     getItemsByAdventurer,
     adventurerVariables
   );
 
   useCustomQuery(
-    networkConfig[network!].lsGQLURL!,
+    network,
     "latestMarketItemsQuery",
     getLatestMarketItems,
     adventurerVariables
   );
 
   const lastBeastData = useCustomQuery(
-    networkConfig[network!].lsGQLURL!,
+    network,
     "lastBeastQuery",
     getLastBeastDiscovery,
     adventurerVariables
@@ -355,15 +375,10 @@ function Home() {
     lastBeastData?.discoveries[0]?.seed,
   ]);
 
-  useCustomQuery(
-    networkConfig[network!].lsGQLURL!,
-    "beastQuery",
-    getBeast,
-    beastVariables
-  );
+  useCustomQuery(network, "beastQuery", getBeast, beastVariables);
 
   useCustomQuery(
-    networkConfig[network!].lsGQLURL!,
+    network,
     "battlesByBeastQuery",
     getBattlesByBeast,
     beastVariables
@@ -398,46 +413,45 @@ function Home() {
     variables: goldenTokenVariables,
   });
 
-  const handleSwitchAdventurer = async (adventurerId: number) => {
-    setIsLoading();
-    const newAdventurerData = await refetch("adventurerByIdQuery", {
-      id: adventurerId,
-    });
-    const newAdventurersData = await refetch("adventurersByOwnerQuery", {
-      owner: owner,
-    });
-    const newLatestDiscoveriesData = await refetch("latestDiscoveriesQuery", {
-      id: adventurerId,
-    });
-    const newAdventurerItemsData = await refetch("itemsByAdventurerQuery", {
-      id: adventurerId,
-    });
-    const newMarketItemsData = await refetch("latestMarketItemsQuery", {
-      id: adventurerId,
-    });
-    const newLastBeastData = await refetch("lastBeastQuery", {
-      id: adventurerId,
-    });
-    const newBeastData = await refetch("beastQuery", {
-      adventurerId: adventurerId,
-      beast: newLastBeastData.discoveries[0]?.entity,
-      seed: newLastBeastData.discoveries[0]?.seed,
-    });
-    const newBattlesByBeastData = await refetch("battlesByBeastQuery", {
-      adventurerId: adventurerId,
-      beast: newLastBeastData.discoveries[0]?.entity,
-      seed: newLastBeastData.discoveries[0]?.seed,
-    });
-    setData("adventurerByIdQuery", newAdventurerData);
-    setData("adventurersByOwnerQuery", newAdventurersData);
-    setData("latestDiscoveriesQuery", newLatestDiscoveriesData);
-    setData("itemsByAdventurerQuery", newAdventurerItemsData);
-    setData("latestMarketItemsQuery", newMarketItemsData);
-    setData("lastBeastQuery", newLastBeastData);
-    setData("beastQuery", newBeastData);
-    setData("battlesByBeastQuery", newBattlesByBeastData);
-    setNotLoading();
-  };
+  const handleSwitchAdventurer = useCallback(
+    async (adventurerId: number) => {
+      setIsLoading();
+      const newAdventurerData = await refetch("adventurerByIdQuery", {
+        id: adventurerId,
+      });
+      const newLatestDiscoveriesData = await refetch("latestDiscoveriesQuery", {
+        id: adventurerId,
+      });
+      const newAdventurerItemsData = await refetch("itemsByAdventurerQuery", {
+        id: adventurerId,
+      });
+      const newMarketItemsData = await refetch("latestMarketItemsQuery", {
+        id: adventurerId,
+      });
+      const newLastBeastData = await refetch("lastBeastQuery", {
+        id: adventurerId,
+      });
+      const newBeastData = await refetch("beastQuery", {
+        adventurerId: adventurerId,
+        beast: newLastBeastData.discoveries[0]?.entity,
+        seed: newLastBeastData.discoveries[0]?.seed,
+      });
+      const newBattlesByBeastData = await refetch("battlesByBeastQuery", {
+        adventurerId: adventurerId,
+        beast: newLastBeastData.discoveries[0]?.entity,
+        seed: newLastBeastData.discoveries[0]?.seed,
+      });
+      setData("adventurerByIdQuery", newAdventurerData);
+      setData("latestDiscoveriesQuery", newLatestDiscoveriesData);
+      setData("itemsByAdventurerQuery", newAdventurerItemsData);
+      setData("latestMarketItemsQuery", newMarketItemsData);
+      setData("lastBeastQuery", newLastBeastData);
+      setData("beastQuery", newBeastData);
+      setData("battlesByBeastQuery", newBattlesByBeastData);
+      setNotLoading();
+    },
+    [owner, adventurer?.id]
+  );
 
   useEffect(() => {
     return () => {
@@ -445,31 +459,23 @@ function Home() {
     };
   }, [play, stop]);
 
-  // Initialize adventurers from owner
-  useEffect(() => {
-    if (adventurersData) {
-      setData("adventurersByOwnerQuery", adventurersData);
-    }
-  }, [adventurersData]);
+  const mobileMenuDisabled = useMemo(
+    () => [false, hasStatUpgrades, false, !hasStatUpgrades, false, false],
+    [hasStatUpgrades]
+  );
 
-  const mobileMenuDisabled = [
-    false,
-    hasStatUpgrades,
-    false,
-    !hasStatUpgrades,
-    false,
-    false,
-  ];
-
-  const allMenuDisabled = [
-    false,
-    hasStatUpgrades,
-    false,
-    !hasStatUpgrades,
-    false,
-    false,
-    false,
-  ];
+  const allMenuDisabled = useMemo(
+    () => [
+      false,
+      hasStatUpgrades,
+      false,
+      !hasStatUpgrades,
+      false,
+      false,
+      false,
+    ],
+    [hasStatUpgrades]
+  );
 
   const adventurers = adventurersData?.adventurers;
 
@@ -526,34 +532,39 @@ function Home() {
     (pendingMessage === "Spawning Adventurer" ||
       pendingMessage.includes("Spawning Adventurer"));
 
-  const getCostToPlay = async () => {
-    const cost = await gameContract!.call("get_cost_to_play", []);
-    setCostToPlay(cost as bigint);
-  };
+  const [costToPlay, setCostToPlay] = useState<bigint>(BigInt(0));
 
   useEffect(() => {
+    const getCostToPlay = async () => {
+      if (gameContract) {
+        const result = await gameContract.call("get_cost_to_play", []);
+        setCostToPlay(result as bigint);
+      }
+    };
     getCostToPlay();
-  }, []);
+  }, [gameContract]);
 
   const { setCondition } = useController();
   useControls();
 
   useEffect(() => {
-    setCondition("a", screen === "play" && hasBeast);
-    setCondition("s", screen === "play" && hasBeast);
-    setCondition("f", screen === "play" && hasBeast);
-    setCondition("g", screen === "play" && hasBeast);
-    setCondition("e", screen === "play" && !hasBeast);
-    setCondition("r", screen === "play" && !hasBeast);
-    setCondition("u", screen === "upgrade");
-    setCondition(
-      "i",
-      screen === "play" ||
-        screen === "beast" ||
-        screen === "upgrade" ||
-        screen === "inventory"
-    );
-  }, [screen, hasBeast]);
+    if (process.env.NEXT_PUBLIC_NETWORK === "arcade") {
+      setCondition("a", screen === "play" && hasBeast);
+      setCondition("s", screen === "play" && hasBeast);
+      setCondition("f", screen === "play" && hasBeast);
+      setCondition("g", screen === "play" && hasBeast);
+      setCondition("e", screen === "play" && !hasBeast);
+      setCondition("r", screen === "play" && !hasBeast);
+      setCondition("u", screen === "upgrade");
+      setCondition(
+        "i",
+        screen === "play" ||
+          screen === "beast" ||
+          screen === "upgrade" ||
+          screen === "inventory"
+      );
+    }
+  }, [screen, hasBeast, network]);
 
   useEffect(() => {
     if (!onboarded) {
@@ -566,9 +577,11 @@ function Home() {
   useEffect(() => {
     const fetchEntropy = async () => {
       if (adventurer?.id) {
-        const entropy = await gameContract!.call("get_adventurer_entropy", [
-          adventurer?.id!,
-        ]);
+        const adventurerMeta: any = await gameContract!.call(
+          "get_adventurer_meta",
+          [adventurer?.id!]
+        );
+        const entropy = adventurerMeta.level_seed;
         if (entropy !== BigInt(0)) {
           setAdventurerEntropy(BigInt(entropy.toString()));
           setEntropyReady(true);
@@ -581,13 +594,68 @@ function Home() {
     fetchEntropy();
 
     // Set up the interval to call the function every 5 seconds
-    const interval = setInterval(fetchEntropy, 5000);
+    const interval = setInterval(fetchEntropy, VRF_WAIT_TIME);
 
     return () => clearInterval(interval); // Cleanup on component unmount
   }, [adventurer?.level]);
 
+  const fetchItemSpecialsData = async () => {
+    const updatedAdventurer = (await gameContract!.call("get_adventurer", [
+      adventurer?.id!,
+    ])) as any;
+    const itemsWithSpecials = await refetch("itemsByAdventurerQuery", {
+      id: adventurer?.id,
+    });
+    updateAdventurerStats({
+      health: parseInt(updatedAdventurer.health),
+      strength: parseInt(updatedAdventurer.stats.strength),
+      dexterity: parseInt(updatedAdventurer.stats.dexterity),
+      vitality: parseInt(updatedAdventurer.stats.vitality),
+      intelligence: parseInt(updatedAdventurer.stats.intelligence),
+      wisdom: parseInt(updatedAdventurer.stats.wisdom),
+      charisma: parseInt(updatedAdventurer.stats.charisma),
+      luck: parseInt(updatedAdventurer.stats.luck),
+    });
+    setData("itemsByAdventurerQuery", itemsWithSpecials);
+  };
+
+  useEffect(() => {
+    const fetchEntropy = async () => {
+      if (adventurer?.id && fetchUnlocksEntropy) {
+        const adventurerMeta: any = await gameContract!.call(
+          "get_adventurer_meta",
+          [adventurer?.id!]
+        );
+        const entropy = adventurerMeta.item_specials_seed;
+        if (entropy !== BigInt(0)) {
+          // Add a 5-second delay before executing the rest of the logic
+          setTimeout(() => {
+            setFetchUnlocksEntropy(false);
+            setItemEntropy(BigInt(entropy.toString()));
+            fetchItemSpecialsData();
+            clearInterval(interval);
+          }, 5000); // 5000 milliseconds = 5 seconds
+        }
+      }
+    };
+
+    // Call the function immediately
+    if (itemEntropy === BigInt(0)) {
+      fetchEntropy();
+    }
+
+    // Set up the interval to call the function every 5 seconds
+    const interval = setInterval(fetchEntropy, VRF_WAIT_TIME);
+
+    return () => clearInterval(interval); // Cleanup on component unmount
+  }, [fetchUnlocksEntropy]);
+
   return (
     <>
+      {((!entropyReady && hasStatUpgrades) || fetchUnlocksEntropy) &&
+        !onKatana && (
+          <InterludeScreen type={fetchUnlocksEntropy ? "item" : "level"} />
+        )}
       <NetworkSwitchError network={network} isWrongNetwork={isWrongNetwork} />
       {isMintingLords && <TokenLoader isToppingUpLords={isMintingLords} />}
       {isWithdrawing && <TokenLoader isWithdrawing={isWithdrawing} />}
@@ -595,7 +663,7 @@ function Home() {
         <Onboarding
           ethBalance={ethBalance}
           lordsBalance={lordsBalance}
-          costToPlay={costToPlay!}
+          costToPlay={costToPlay}
           mintLords={mintLords}
           getBalances={getBalances}
         />
@@ -616,7 +684,7 @@ function Home() {
               ethBalance={ethBalance}
               lordsBalance={lordsBalance}
               gameContract={gameContract!}
-              costToPlay={costToPlay!}
+              costToPlay={costToPlay}
             />
           </div>
           <div className="w-full h-1 sm:h-6 sm:my-2 bg-terminal-green text-terminal-black px-4">
@@ -666,7 +734,7 @@ function Home() {
                     goldenTokenData={goldenTokenData}
                     getBalances={getBalances}
                     mintLords={mintLords}
-                    costToPlay={costToPlay!}
+                    costToPlay={costToPlay}
                   />
                 )}
                 {screen === "play" && (

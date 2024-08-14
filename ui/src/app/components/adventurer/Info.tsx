@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Contract } from "starknet";
 import { Adventurer, NullAdventurer, NullItem } from "@/app/types";
 import {
@@ -16,6 +17,8 @@ import { GameData } from "@/app/lib/data/GameData";
 import useTransactionCartStore from "@/app/hooks/useTransactionCartStore";
 import { calculateLevel } from "@/app/lib/utils";
 import { vitalityIncrease } from "@/app/lib/constants";
+import LootIconLoader from "@/app/components/icons/Loader";
+import AutoScrolling from "@/app/components/animations/AutoScrolling";
 
 interface InfoProps {
   adventurer: Adventurer | undefined;
@@ -54,80 +57,88 @@ export default function Info({
     ? data.itemsByAdventurerQuery.items
     : [];
 
-  const filteredDrops = items.filter(
-    (item) =>
-      !dropItems.includes(getKeyFromValue(gameData.ITEMS, item.item!) ?? "")
-  );
+  const filteredItems = useMemo(() => {
+    const filteredDrops = items.filter(
+      (item) =>
+        !dropItems.includes(getKeyFromValue(gameData.ITEMS, item.item!) ?? "")
+    );
 
-  const updatePurchaseEquips = filteredDrops.flatMap((item) => {
-    if (purchaseItems.length > 0) {
-      const replaceItem = purchaseItems.find((pItem) => {
+    const updatePurchaseEquips = filteredDrops.flatMap((item) => {
+      if (purchaseItems.length > 0) {
+        const replaceItems = purchaseItems.filter((pItem) => {
+          const { slot: equipSlot } = getItemData(
+            gameData.ITEMS[parseInt(pItem.item)]
+          );
+          const { slot: heldSlot } = getItemData(item.item!);
+          return equipSlot === heldSlot && pItem.equip === "1";
+        });
+        if (replaceItems.length > 0) {
+          return [
+            { ...item, equipped: false },
+            {
+              item: gameData.ITEMS[
+                parseInt(replaceItems[replaceItems.length - 1].item)
+              ],
+              adventurerId: formatAdventurer.id,
+              owner: true,
+              equipped: true,
+              ownerAddress: formatAdventurer.owner,
+              xp: 0,
+              special1: undefined,
+              special2: undefined,
+              special3: undefined,
+              isAvailable: false,
+              purchasedTime: new Date(),
+              timestamp: new Date(),
+            },
+          ];
+        }
+      }
+
+      return [item];
+    });
+
+    const updateEquips = updatePurchaseEquips.map((item) => {
+      const replaceItem = equipItems.find((eItem) => {
         const { slot: equipSlot } = getItemData(
-          gameData.ITEMS[parseInt(pItem.item)]
+          gameData.ITEMS[parseInt(eItem)]
         );
         const { slot: heldSlot } = getItemData(item.item!);
-        return equipSlot === heldSlot && pItem.equip === "1";
+        return equipSlot === heldSlot;
       });
       if (replaceItem) {
-        return [
-          { ...item, equipped: false },
-          {
-            item: gameData.ITEMS[parseInt(replaceItem.item)],
-            adventurerId: formatAdventurer.id,
-            owner: true,
-            equipped: true,
-            ownerAddress: formatAdventurer.owner,
-            xp: 0,
-            special1: undefined,
-            special2: undefined,
-            special3: undefined,
-            isAvailable: false,
-            purchasedTime: new Date(),
-            timestamp: new Date(),
-          },
-        ];
+        if (item.equipped) {
+          return { ...item, equipped: false };
+        } else {
+          if (item.item === gameData.ITEMS[parseInt(replaceItem)]) {
+            return { ...item, equipped: true };
+          }
+        }
       }
-    }
 
-    return [item];
-  });
-
-  const updateEquips = updatePurchaseEquips.map((item) => {
-    const replaceItem = equipItems.find((eItem) => {
-      const { slot: equipSlot } = getItemData(gameData.ITEMS[parseInt(eItem)]);
-      const { slot: heldSlot } = getItemData(item.item!);
-      return equipSlot === heldSlot;
+      return item;
     });
-    if (replaceItem) {
-      if (item.equipped) {
-        return { ...item, equipped: false };
-      } else {
-        return { ...item, equipped: true };
-      }
-    }
 
-    return item;
-  });
-
-  const finalItems = [
-    ...updateEquips,
-    ...purchaseItems
-      .filter((pItem) => pItem.equip === "1")
-      .map((pItem) => ({
-        item: gameData.ITEMS[parseInt(pItem.item)],
-        adventurerId: formatAdventurer.id,
-        owner: true,
-        equipped: true,
-        ownerAddress: formatAdventurer.owner,
-        xp: 0,
-        special1: undefined,
-        special2: undefined,
-        special3: undefined,
-        isAvailable: false,
-        purchasedTime: new Date(),
-        timestamp: new Date(),
-      })),
-  ];
+    return [
+      ...updateEquips,
+      ...purchaseItems
+        .filter((pItem) => pItem.equip === "1")
+        .map((pItem) => ({
+          item: gameData.ITEMS[parseInt(pItem.item)],
+          adventurerId: formatAdventurer.id,
+          owner: true,
+          equipped: true,
+          ownerAddress: formatAdventurer.owner,
+          xp: 0,
+          special1: undefined,
+          special2: undefined,
+          special3: undefined,
+          isAvailable: false,
+          purchasedTime: new Date(),
+          timestamp: new Date(),
+        })),
+    ];
+  }, [items, dropItems, equipItems, purchaseItems]);
 
   const handleDropItems = (item: string) => {
     const newDropItems = [
@@ -223,20 +234,26 @@ export default function Info({
 
   const adventurerLevel = calculateLevel(adventurer?.xp ?? 0);
 
+  const scrollableRef = AutoScrolling();
+
   return (
     <>
       {adventurer?.id ? (
         <div className="flex flex-col w-full uppercase h-full p-2 border border-terminal-green">
           <div className="relative flex justify-between w-full text-xl sm:text-2xl lg:text-3xl">
-            {formatAdventurer.name}
-            <span className="flex items-center text-terminal-yellow">
+            <span className="w-3/4 overflow-hidden" ref={scrollableRef}>
+              {formatAdventurer.name}
+            </span>
+            <span className="relative flex items-center text-terminal-yellow">
               <CoinIcon className="self-center mt-1 w-5 h-5 fill-current" />{" "}
               {formatAdventurer.gold
                 ? formatAdventurer.gold - (upgradeCost ?? 0)
                 : 0}
-              <span className="absolute top-0 right-[-20px] text-xs">
-                {formatAdventurer.gold === 511 ? "Full" : ""}
-              </span>
+              {upgradeCost! > 0 && (
+                <p className="absolute top-[-5px] sm:top-[-10px] right-[30px] sm:right-[-15px] text-xs sm:text-sm">
+                  -{upgradeCost}
+                </p>
+              )}
             </span>
             <span className="flex flex-row gap-1 items-center ">
               <HeartIcon className="self-center mt-1 w-5 h-5 fill-current" />{" "}
@@ -283,20 +300,27 @@ export default function Info({
           )}
 
           <div className="w-full flex flex-col gap-1 text-xs overflow-y-scroll default-scroll h-[500px]">
-            {bodyParts.map((part) => (
-              <ItemDisplay
-                item={
-                  finalItems.find((item: Item) => {
-                    const { slot } = getItemData(item.item!);
-                    return slot === part && item.equipped;
-                  }) || NullItem
-                }
-                itemSlot={part}
-                handleDrop={handleDropItems}
-                gameContract={gameContract}
-                key={part}
-              />
-            ))}
+            {(profileExists && !data.itemsByProfileQuery) ||
+            (!profileExists && !data.itemsByAdventurerQuery) ? (
+              <div>
+                <LootIconLoader className="m-auto" size="w-10" />
+              </div>
+            ) : (
+              bodyParts.map((part) => (
+                <ItemDisplay
+                  item={
+                    filteredItems.find((item: Item) => {
+                      const { slot } = getItemData(item.item!);
+                      return slot === part && item.equipped;
+                    }) || NullItem
+                  }
+                  itemSlot={part}
+                  handleDrop={handleDropItems}
+                  gameContract={gameContract}
+                  key={part}
+                />
+              ))
+            )}
           </div>
         </div>
       ) : (

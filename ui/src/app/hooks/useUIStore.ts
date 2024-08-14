@@ -100,8 +100,12 @@ type State = {
   setAverageBlockTime: (value: number) => void;
   adventurerEntropy: bigint;
   setAdventurerEntropy: (value: bigint) => void;
+  itemEntropy: bigint;
+  setItemEntropy: (value: bigint) => void;
   entropyReady: boolean;
   setEntropyReady: (value: boolean) => void;
+  fetchUnlocksEntropy: boolean;
+  setFetchUnlocksEntropy: (value: boolean) => void;
   loginScreen: boolean;
   setLoginScreen: (value: boolean) => void;
   network: Network;
@@ -127,6 +131,8 @@ type State = {
   setIsController: (value: boolean) => void;
   controllerAdmin: string;
   setControllerAdmin: (value: string) => void;
+  tillDeath: boolean;
+  setTillDeath: (value: boolean) => void;
 };
 
 const useUIStore = create<State>((set) => ({
@@ -201,6 +207,8 @@ const useUIStore = create<State>((set) => ({
   setAverageBlockTime: (value) => set({ averageBlockTime: value }),
   adventurerEntropy: BigInt(0),
   setAdventurerEntropy: (value) => set({ adventurerEntropy: value }),
+  itemEntropy: BigInt(0),
+  setItemEntropy: (value) => set({ itemEntropy: value }),
   entropyReady: false,
   setEntropyReady: (value) => set({ entropyReady: value }),
   loginScreen: false,
@@ -233,6 +241,10 @@ const useUIStore = create<State>((set) => ({
   setIsController: (value) => set({ isController: value }),
   controllerAdmin: "",
   setControllerAdmin: (value) => set({ controllerAdmin: value }),
+  fetchUnlocksEntropy: false,
+  setFetchUnlocksEntropy: (value) => set({ fetchUnlocksEntropy: value }),
+  tillDeath: true,
+  setTillDeath: (value) => set({ tillDeath: value }),
 }));
 
 export default useUIStore;
