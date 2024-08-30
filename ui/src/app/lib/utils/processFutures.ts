@@ -16,6 +16,7 @@ interface Beast {
   type: string;
   tier: number;
   level: number;
+  power: number;
   health: number;
   location: string;
   dodgeRoll: number;
@@ -32,6 +33,7 @@ interface Encounter {
   type: string;
   tier: string | number;
   level?: number;
+  power?: number;
   health?: number;
   location?: string;
   dodgeRoll?: number;
@@ -793,6 +795,7 @@ function beastEncounter(
   let beast_tier = getTier(beast_id);
   let beast_type = getType(beast_id);
   let beast_level = getObstacleLevel(level, level_rnd);
+  let power = (6n - beast_tier) * beast_level;
 
   let ambush_location = getAttackLocation(dmg_location_rnd);
   let roll = abilityBasedAvoidThreat(level, ambush_rnd);
@@ -827,6 +830,7 @@ function beastEncounter(
     type: beast_type,
     tier: Number(beast_tier),
     level: Number(beast_level),
+    power: Number(power),
     health: Number(beast_health),
     location: ambush_location,
     dodgeRoll: Number(roll) + 1,
@@ -852,6 +856,7 @@ function obstacleEncounter(
   let obstacle_level = getObstacleLevel(level, level_rnd);
   let obstacle_tier = getTier(obstacle_id);
   let obstacle_type = getType(obstacle_id);
+  let power = (6n - obstacle_tier) * obstacle_level;
 
   let location = getAttackLocation(dmg_location_rnd);
   let roll = abilityBasedAvoidThreat(level, dodge_rnd);
@@ -887,6 +892,7 @@ function obstacleEncounter(
     type: obstacle_type,
     tier: Number(obstacle_tier),
     level: Number(obstacle_level),
+    power: Number(power),
     location: location,
     dodgeRoll: Number(roll) + 1,
     nextXp: xp + Number(xp_reward),

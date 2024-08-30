@@ -72,7 +72,7 @@ const allMenuItems: Menu[] = [
   { id: 3, label: "Inventory", screen: "inventory", disabled: false },
   { id: 4, label: "Upgrade", screen: "upgrade", disabled: false },
   { id: 5, label: "Leaderboard", screen: "leaderboard", disabled: false },
-  { id: 6, label: "Encounters", screen: "encounters", disabled: false },
+  { id: 6, label: "Travel Log", screen: "encounters", disabled: false },
   { id: 7, label: "Guide", screen: "guide", disabled: false },
 ];
 
@@ -81,7 +81,7 @@ const mobileMenuItems: Menu[] = [
   { id: 2, label: "Play", screen: "play", disabled: false },
   { id: 3, label: "Inventory", screen: "inventory", disabled: false },
   { id: 4, label: "Upgrade", screen: "upgrade", disabled: false },
-  { id: 5, label: "Encounters", screen: "encounters", disabled: false },
+  { id: 5, label: "Travel Log", screen: "encounters", disabled: false },
   { id: 6, label: "Guide", screen: "guide", disabled: false },
 ];
 
@@ -140,6 +140,9 @@ function Home() {
   const showProfile = useUIStore((state) => state.showProfile);
   const itemEntropy = useUIStore((state) => state.itemEntropy);
   const setItemEntropy = useUIStore((state) => state.setItemEntropy);
+  const openInterlude = useUIStore((state) => state.openInterlude);
+  const setOpenInterlude = useUIStore((state) => state.setOpenInterlude);
+  const setG20Unlock = useUIStore((state) => state.setG20Unlock);
 
   const { contract: gameContract } = useContract({
     address: networkConfig[network!].gameAddress,
@@ -180,11 +183,14 @@ function Home() {
   const setDeathMessage = useLoadingStore((state) => state.setDeathMessage);
   const showDeathDialog = useUIStore((state) => state.showDeathDialog);
   const setStartOption = useUIStore((state) => state.setStartOption);
-  const entropyReady = useUIStore((state) => state.entropyReady);
   const setEntropyReady = useUIStore((state) => state.setEntropyReady);
   const fetchUnlocksEntropy = useUIStore((state) => state.fetchUnlocksEntropy);
   const setFetchUnlocksEntropy = useUIStore(
     (state) => state.setFetchUnlocksEntropy
+  );
+  const adventurerLeveledUp = useUIStore((state) => state.adventurerLeveledUp);
+  const setAdventurerLeveledUp = useUIStore(
+    (state) => state.setAdventurerLeveledUp
   );
   const adventurerEntropy = useUIStore((state) => state.adventurerEntropy);
   const [accountChainId, setAccountChainId] = useState<
@@ -252,6 +258,7 @@ function Home() {
     multicall,
     mintLords,
     withdraw,
+    transferAdventurer,
   } = useSyscalls({
     gameContract: gameContract!,
     ethContract: ethContract!,
@@ -289,7 +296,10 @@ function Home() {
     setIsMintingLords,
     setIsWithdrawing,
     setEntropyReady,
+    itemEntropy,
     setFetchUnlocksEntropy,
+    setAdventurerLeveledUp,
+    setG20Unlock,
     provider,
     network,
   });
@@ -497,7 +507,7 @@ function Home() {
         setScreen("upgrade");
       }
     }
-  }, [adventurer]);
+  }, [adventurer, adventurerLeveledUp]);
 
   const getAccountChainId = async () => {
     if (account) {
@@ -583,6 +593,7 @@ function Home() {
         );
         const entropy = adventurerMeta.level_seed;
         if (entropy !== BigInt(0)) {
+          setAdventurerLeveledUp(false);
           setAdventurerEntropy(BigInt(entropy.toString()));
           setEntropyReady(true);
           clearInterval(interval);
@@ -650,12 +661,17 @@ function Home() {
     return () => clearInterval(interval); // Cleanup on component unmount
   }, [fetchUnlocksEntropy]);
 
+  useEffect(() => {
+    if (adventurerLeveledUp || fetchUnlocksEntropy) {
+      setOpenInterlude(true);
+    }
+  }, [adventurerLeveledUp, fetchUnlocksEntropy]);
+
   return (
     <>
-      {((!entropyReady && hasStatUpgrades) || fetchUnlocksEntropy) &&
-        !onKatana && (
-          <InterludeScreen type={fetchUnlocksEntropy ? "item" : "level"} />
-        )}
+      {openInterlude && !onKatana && (
+        <InterludeScreen type={fetchUnlocksEntropy ? "item" : "level"} />
+      )}
       <NetworkSwitchError network={network} isWrongNetwork={isWrongNetwork} />
       {isMintingLords && <TokenLoader isToppingUpLords={isMintingLords} />}
       {isWithdrawing && <TokenLoader isWithdrawing={isWithdrawing} />}
@@ -735,6 +751,7 @@ function Home() {
                     getBalances={getBalances}
                     mintLords={mintLords}
                     costToPlay={costToPlay}
+                    transferAdventurer={transferAdventurer}
                   />
                 )}
                 {screen === "play" && (

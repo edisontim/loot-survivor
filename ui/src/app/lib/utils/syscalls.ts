@@ -99,7 +99,10 @@ export interface SyscallsProps {
   setIsMintingLords: (value: boolean) => void;
   setIsWithdrawing: (value: boolean) => void;
   setEntropyReady: (value: boolean) => void;
+  itemEntropy: bigint;
   setFetchUnlocksEntropy: (value: boolean) => void;
+  setAdventurerLeveledUp: (value: boolean) => void;
+  setG20Unlock: (value: boolean) => void;
   provider: ProviderInterface;
   network: Network;
 }
@@ -213,7 +216,10 @@ export function createSyscalls({
   setIsMintingLords,
   setIsWithdrawing,
   setEntropyReady,
+  itemEntropy,
   setFetchUnlocksEntropy,
+  setAdventurerLeveledUp,
+  setG20Unlock,
   provider,
   network,
 }: SyscallsProps) {
@@ -285,9 +291,10 @@ export function createSyscalls({
         getKeyFromValue(gameData.ITEMS, formData.startingWeapon) ?? "",
         stringToFelt(formData.name).toString(),
         goldenTokenId,
-        "0",
         "0", // delay_stat_reveal
         rendererContractAddress,
+        "0",
+        "0",
       ],
     };
 
@@ -575,7 +582,9 @@ export function createSyscalls({
                   "special1",
                   ownedItemIndex
                 );
-                setFetchUnlocksEntropy(true);
+                if (itemEntropy === BigInt(0)) {
+                  setFetchUnlocksEntropy(true);
+                }
               }
               if (itemLeveled.prefixesUnlocked) {
                 setData(
@@ -590,6 +599,9 @@ export function createSyscalls({
                   "special3",
                   ownedItemIndex
                 );
+              }
+              if (itemLeveled.newLevel === 20) {
+                setG20Unlock(true);
               }
             }
           }
@@ -665,6 +677,7 @@ export function createSyscalls({
       );
       if (leveledUpEvents.length > 0) {
         setScreen("upgrade");
+        setAdventurerLeveledUp(true);
       }
 
       setData("latestDiscoveriesQuery", {
@@ -681,6 +694,7 @@ export function createSyscalls({
       setDropItems([]);
       stopLoading(reversedDiscoveries, false, "Explore");
       !onKatana && getEthBalance();
+      setEntropyReady(false);
     } catch (e) {
       console.log(e);
       stopLoading(e, true);
@@ -818,7 +832,9 @@ export function createSyscalls({
                 "special1",
                 ownedItemIndex
               );
-              setFetchUnlocksEntropy(true);
+              if (itemEntropy === BigInt(0)) {
+                setFetchUnlocksEntropy(true);
+              }
             }
             if (itemLeveled.prefixesUnlocked) {
               setData(
@@ -833,6 +849,9 @@ export function createSyscalls({
                 "special3",
                 ownedItemIndex
               );
+            }
+            if (itemLeveled.newLevel === 20) {
+              setG20Unlock(true);
             }
           }
         }
@@ -883,6 +902,7 @@ export function createSyscalls({
       );
       if (leveledUpEvents.length > 0) {
         setScreen("upgrade");
+        setAdventurerLeveledUp(true);
       }
 
       setData("battlesByBeastQuery", {
@@ -1037,6 +1057,7 @@ export function createSyscalls({
       );
       if (leveledUpEvents.length > 0) {
         setScreen("upgrade");
+        setAdventurerLeveledUp(true);
       }
 
       setData("battlesByBeastQuery", {
@@ -1058,6 +1079,7 @@ export function createSyscalls({
       setEquipItems([]);
       setDropItems([]);
       !onKatana && getEthBalance();
+      setEntropyReady(false);
     } catch (e) {
       console.log(e);
       stopLoading(e, true);
@@ -1203,6 +1225,7 @@ export function createSyscalls({
 
       !onKatana && getEthBalance();
       setEntropyReady(false);
+      setG20Unlock(false);
     } catch (e) {
       console.log(e);
       stopLoading(e, true);
@@ -1388,6 +1411,8 @@ export function createSyscalls({
 
       stopLoading(notification, false, "Multicall");
       !onKatana && getEthBalance();
+      setEntropyReady(false);
+      setG20Unlock(false);
     } catch (e) {
       console.log(e);
       stopLoading(e, true);
@@ -1484,6 +1509,40 @@ export function createSyscalls({
       throw error;
     }
   };
+
+  const transferAdventurer = async (
+    account: AccountInterface,
+    adventurerId: number,
+    from: string,
+    recipient: string
+  ) => {
+    try {
+      const transferTx = {
+        contractAddress: gameContract?.address ?? "",
+        entrypoint: "transfer_from",
+        calldata: [from, recipient, adventurerId.toString() ?? "", "0"],
+      };
+
+      const { transaction_hash } = await account.execute([
+        ...calls,
+        transferTx,
+      ]);
+
+      const result = await provider.waitForTransaction(transaction_hash, {
+        retryInterval: getWaitRetryInterval(network!),
+      });
+
+      if (!result) {
+        throw new Error("Transaction did not complete successfully.");
+      }
+
+      getBalances();
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  };
+
   return {
     spawn,
     explore,
@@ -1493,6 +1552,7 @@ export function createSyscalls({
     multicall,
     mintLords,
     withdraw,
+    transferAdventurer,
   };
 }
 

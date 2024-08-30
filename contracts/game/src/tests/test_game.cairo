@@ -1,5 +1,7 @@
 #[cfg(test)]
 mod tests {
+    use starknet::storage::MutableVecTrait;
+    use starknet::storage_access::storage_address_from_base;
     use array::ArrayTrait;
     use core::{result::ResultTrait, traits::Into, array::SpanTrait, serde::Serde, clone::Clone};
     use option::OptionTrait;
@@ -13,20 +15,21 @@ mod tests {
     use snforge_std::{
         declare, ContractClassTrait, start_cheat_block_timestamp_global,
         start_cheat_block_number_global, start_cheat_caller_address_global,
-        cheatcodes::contract_class::ContractClass, start_cheat_chain_id_global
+        stop_cheat_caller_address_global, cheatcodes::contract_class::ContractClass,
+        start_cheat_chain_id_global, store, load, map_entry_address
     };
     use loot::{loot::{Loot, ImplLoot, ILoot}, constants::{ItemId}};
     use game::{
-        Game,
+        Game, LaunchTournamentCollections,
         Game::{
-            IGame, _adventurer_nameContractMemberStateTrait, _adventurerContractMemberStateTrait,
-            _process_item_level_up, _set_item_specials_seed
+            IGame, _process_item_level_up, _set_item_specials_seed, _initialize_launch_tournament,
+            _process_adventurer_death
         },
         game::{
             interfaces::{IGameDispatcherTrait, IGameDispatcher},
             constants::{
                 COST_TO_PLAY, Rewards, REWARD_DISTRIBUTIONS_BP, messages::{STAT_UPGRADES_AVAILABLE},
-                STARTER_BEAST_ATTACK_DAMAGE,
+                STARTER_BEAST_ATTACK_DAMAGE, GAME_EXPIRY_DAYS, SECONDS_IN_DAY
             },
         }
     };
@@ -53,7 +56,6 @@ mod tests {
 
     use game::tests::mocks::erc20_mocks::DualCaseERC20Mock;
     use game::tests::mocks::erc721_mocks::DualCaseERC721Mock;
-    use openzeppelin::tests::utils;
     use openzeppelin::token::erc20::dual20::{DualCaseERC20, DualCaseERC20Trait};
     use openzeppelin::token::erc20::interface::{IERC20CamelDispatcher, IERC20CamelDispatcherTrait};
     use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
@@ -74,23 +76,8 @@ mod tests {
 
     const ADVENTURER_ID: felt252 = 1;
     const APPROVE: u256 = 1000000000000000000000000000000000000000000;
-    const DEFAULT_NO_GOLDEN_TOKEN: felt252 = 0;
     const DAY: u64 = 86400;
     const TESTING_CHAIN_ID: felt252 = 0x4c4f4f545355525649564f52;
-
-    // type ComponentState = ERC20Component::ComponentState<DualCaseERC20Mock::ContractState>;
-
-    // fn COMPONENT_STATE() -> ComponentState {
-    //     ERC20Component::component_state_for_testing()
-    // }
-
-    // fn oz_erc20_setup() -> ComponentState {
-    //     let mut state = COMPONENT_STATE();
-    //     state.initializer(NAME(), SYMBOL());
-    //     state.mint(OWNER(), SUPPLY);
-    //     utils::drop_event(ZERO());
-    //     state
-    // }
 
     fn INTERFACE_ID() -> ContractAddress {
         contract_address_const::<1>()
@@ -118,6 +105,10 @@ mod tests {
 
     fn ARBITRARY_ADDRESS() -> ContractAddress {
         contract_address_const::<12345>()
+    }
+
+    fn VRF_PREMIUMS_ADDRESS() -> ContractAddress {
+        contract_address_const::<7>()
     }
 
     fn QUALIFYING_COLLECTIONS() -> Span<ContractAddress> {
@@ -247,13 +238,22 @@ mod tests {
         IMockRandomnessDispatcher { contract_address }
     }
 
-    fn deploy_game(
+    /// @title Deploy Loot Survivor
+    /// @notice Deploys the loot survivor game contract
+    /// @param lords The address of the lords token
+    /// @param eth The address of the eth token
+    /// @param golden_token The address of the golden token
+    /// @param terminal_timestamp The timestamp at which the game will terminate
+    /// @param randomness The address of the randomness contract
+    /// @param qualifying_collections The span of qualifying collections
+    /// @param launch_promotion_end_timestamp The timestamp at which the launch promotion ends
+    fn deploy_lootsurvivor(
         lords: ContractAddress,
         eth: ContractAddress,
         golden_token: ContractAddress,
         terminal_timestamp: u64,
         randomness: ContractAddress,
-        qualifying_collections: Span<ContractAddress>,
+        qualifying_collections: Span<LaunchTournamentCollections>,
         launch_promotion_end_timestamp: u64
     ) -> IGameDispatcher {
         let mut calldata = ArrayTrait::<felt252>::new();
@@ -275,17 +275,28 @@ mod tests {
                 break;
             }
             let collection = *qualifying_collections.at(collection_count);
-            calldata.append(collection.into());
+            calldata.append(collection.collection_address.into());
+            calldata.append(collection.games_per_token.into());
             collection_count += 1;
         };
 
         calldata.append(launch_promotion_end_timestamp.into());
+        calldata.append(VRF_PREMIUMS_ADDRESS().into());
+        calldata.append(300);
         let contract = declare("Game").unwrap();
         let (contract_address, _) = contract.deploy(@calldata).unwrap();
         IGameDispatcher { contract_address }
     }
 
-    fn setup(
+    /// @title Deploy Game
+    /// @notice Deploys the game contract
+    /// @param starting_block The block number at which the game will start
+    /// @param starting_timestamp The timestamp at which the game will start
+    /// @param terminal_block The block number at which the game will terminate
+    /// @param launch_promotion_end_timestamp The timestamp at which the launch promotion ends
+    /// @return The game contract, the lords token, the eth token, the golden token, the bloberts
+    /// contract, the beasts contract
+    fn deploy_game(
         starting_block: u64,
         starting_timestamp: u64,
         terminal_block: u64,
@@ -309,9 +320,10 @@ mod tests {
         // deploy lords, eth, and golden token
         let lords = deploy_lords(erc20_class_hash);
 
-        // deploy eth   
+        // deploy eth
         let eth = deploy_eth(erc20_class_hash);
 
+        // declare erc721 class hash
         let erc721_class_hash = declare("DualCaseERC721Mock").unwrap();
 
         // deploy golden token
@@ -324,14 +336,19 @@ mod tests {
         let beasts = deploy_beasts(erc721_class_hash);
 
         // add bloberts to qualifying collections
-        let mut qualifying_collections = ArrayTrait::<ContractAddress>::new();
-        qualifying_collections.append(bloberts.contract_address);
+        let mut qualifying_collections = ArrayTrait::<LaunchTournamentCollections>::new();
+        qualifying_collections
+            .append(
+                LaunchTournamentCollections {
+                    collection_address: bloberts.contract_address, games_per_token: 1
+                }
+            );
 
         // deploy vrf/randomness
         let randomness = deploy_vrf();
 
         // deploy game
-        let game = deploy_game(
+        let game = deploy_lootsurvivor(
             lords.contract_address,
             eth.contract_address,
             golden_token.contract_address,
@@ -341,16 +358,20 @@ mod tests {
             launch_promotion_end_timestamp
         );
 
-        // transfer lords to caller address and approve 
+        // transfer lords to caller address and approve
         lords.transfer(OWNER(), 100000000000000000000000000000000);
         eth.transfer(OWNER(), 100000000000000000000000000000000);
+        eth.transfer(game.contract_address, 100000000000000000000000000000000);
 
         // give golden token contract approval to access ETH
         eth.approve(golden_token.contract_address, APPROVE.into());
 
         lords.transfer(OWNER(), 1000000000000000000000000);
 
-        //start_cheat_caller_address_global(OWNER());
+        start_cheat_caller_address_global(game.contract_address);
+        eth.approve(VRF_PREMIUMS_ADDRESS(), APPROVE.into());
+        start_cheat_caller_address_global(OWNER());
+
         lords.approve(game.contract_address, APPROVE.into());
         lords.approve(OWNER(), APPROVE.into());
 
@@ -358,11 +379,18 @@ mod tests {
     }
 
     fn add_adventurer_to_game(
-        ref game: IGameDispatcher, golden_token_id: u256, starting_weapon: u8
+        ref game: IGameDispatcher, golden_token_id: u8, starting_weapon: u8
     ) -> felt252 {
         let adventurer_id = game
             .new_game(
-                INTERFACE_ID(), starting_weapon, 'loothero', golden_token_id, false, ZERO_ADDRESS()
+                INTERFACE_ID(),
+                starting_weapon,
+                'loothero',
+                golden_token_id,
+                false,
+                ZERO_ADDRESS(),
+                0,
+                ZERO_ADDRESS()
             );
 
         let new_adventurer = game.get_adventurer(adventurer_id);
@@ -376,11 +404,18 @@ mod tests {
     }
 
     fn add_level_2_adventurer_to_game(
-        ref game: IGameDispatcher, golden_token_id: u256, starting_weapon: u8
+        ref game: IGameDispatcher, golden_token_id: u8, starting_weapon: u8
     ) -> felt252 {
         let adventurer_id = game
             .new_game(
-                INTERFACE_ID(), starting_weapon, 'loothero', golden_token_id, false, ZERO_ADDRESS()
+                INTERFACE_ID(),
+                starting_weapon,
+                'loothero',
+                golden_token_id,
+                false,
+                ZERO_ADDRESS(),
+                0,
+                ZERO_ADDRESS()
             );
 
         let new_adventurer = game.get_adventurer(adventurer_id);
@@ -396,19 +431,16 @@ mod tests {
 
     fn new_adventurer(starting_block: u64, starting_time: u64) -> IGameDispatcher {
         let terminal_block = 0;
-        let (mut game, _, _, _, _, _, _) = setup(starting_block, starting_time, terminal_block, 0);
+        let (mut game, _, _, _, _, _, _) = deploy_game(
+            starting_block, starting_time, terminal_block, 0
+        );
         let starting_weapon = ItemId::Wand;
         let name = 'abcdefghijklmno';
 
         // start new game
         game
             .new_game(
-                INTERFACE_ID(),
-                starting_weapon,
-                name,
-                DEFAULT_NO_GOLDEN_TOKEN.into(),
-                false,
-                ZERO_ADDRESS()
+                INTERFACE_ID(), starting_weapon, name, 0, false, ZERO_ADDRESS(), 0, ZERO_ADDRESS()
             );
 
         // get adventurer state
@@ -566,9 +598,11 @@ mod tests {
     //     assert(
     //         adventurer.equipment.weapon.id == purchase_weapon_id, 'new weapon should be equipped'
     //     );
-    //     assert(adventurer.equipment.chest.id == purchase_chest_id, 'new chest should be equipped');
+    //     assert(adventurer.equipment.chest.id == purchase_chest_id, 'new chest should be
+    //     equipped');
     //     assert(adventurer.equipment.head.id == purchase_head_id, 'new head should be equipped');
-    //     assert(adventurer.equipment.waist.id == purchase_waist_id, 'new waist should be equipped');
+    //     assert(adventurer.equipment.waist.id == purchase_waist_id, 'new waist should be
+    //     equipped');
     //     assert(adventurer.equipment.foot.id == purchase_foot_id, 'new foot should be equipped');
     //     assert(adventurer.equipment.hand.id == purchase_hand_id, 'new hand should be equipped');
     //     assert(adventurer.gold < STARTING_GOLD, 'items should not be free');
@@ -719,7 +753,7 @@ mod tests {
     fn new_adventurer_with_lords(starting_block: u64) -> (IGameDispatcher, IERC20Dispatcher) {
         let starting_timestamp = 1;
         let terminal_timestamp = 0;
-        let (mut game, lords, _, _, _, _, _) = setup(
+        let (mut game, lords, _, _, _, _, _) = deploy_game(
             starting_block, starting_timestamp, terminal_timestamp, 0
         );
         let starting_weapon = ItemId::Wand;
@@ -728,12 +762,7 @@ mod tests {
         // start new game
         game
             .new_game(
-                INTERFACE_ID(),
-                starting_weapon,
-                name,
-                DEFAULT_NO_GOLDEN_TOKEN.into(),
-                false,
-                ZERO_ADDRESS()
+                INTERFACE_ID(), starting_weapon, name, 0, false, ZERO_ADDRESS(), 0, ZERO_ADDRESS()
             );
 
         // get adventurer state
@@ -790,7 +819,6 @@ mod tests {
 
         let adventurer_start = game.get_adventurer(ADVENTURER_ID);
 
-
         // verify starting state
         assert(adventurer_start.xp == 0, 'advtr should start with 0xp');
         assert(
@@ -823,7 +851,8 @@ mod tests {
             assert(updated_adventurer.gold == adventurer_start.gold, 'should have same gold');
             assert(updated_adventurer.health != 100, 'should have taken dmg');
 
-            // attack again (will take out starter beast with current settings regardless of critical hit)
+            // attack again (will take out starter beast with current settings regardless of
+            // critical hit)
             game.attack(ADVENTURER_ID, false);
 
             // recheck adventurer stats
@@ -1000,7 +1029,8 @@ mod tests {
         let mut shopping_cart = ArrayTrait::<ItemPurchase>::new();
         shopping_cart.append(ItemPurchase { item_id: item_id, equip: true });
 
-        // attempt to buy item during battle - should_panic with message 'Action not allowed in battle'
+        // attempt to buy item during battle - should_panic with message 'Action not allowed in
+        // battle'
         // this test is annotated to expect a panic so if it doesn't, this test will fail
         let stat_upgrades = Stats {
             strength: 0, dexterity: 0, vitality: 0, intelligence: 0, wisdom: 0, charisma: 1, luck: 0
@@ -1540,7 +1570,8 @@ mod tests {
         let (contains, _) = bag.contains(purchased_item_id);
         assert(contains, 'item should be in bag');
 
-        // create drop list consisting of adventurers equipped weapon and purchased item that is in bag
+        // create drop list consisting of adventurers equipped weapon and purchased item that is in
+        // bag
         let mut drop_list = ArrayTrait::<u8>::new();
         drop_list.append(adventurer.equipment.weapon.id);
         drop_list.append(purchased_item_id);
@@ -1734,7 +1765,7 @@ mod tests {
         let starting_block = 1;
         let starting_timestamp = 1;
         let terminal_timestamp = 100;
-        let (mut game, _, _, _, _, _, _) = setup(
+        let (mut game, _, _, _, _, _, _) = deploy_game(
             starting_block, starting_timestamp, terminal_timestamp, 0
         );
 
@@ -1755,7 +1786,7 @@ mod tests {
         let starting_block = 1;
         let starting_timestamp = 1;
         let terminal_timestamp = 0;
-        let (mut game, _, _, _, _, _, _) = setup(
+        let (mut game, _, _, _, _, _, _) = deploy_game(
             starting_block, starting_timestamp, terminal_timestamp, 0
         );
 
@@ -1776,7 +1807,7 @@ mod tests {
         let starting_block = 364063;
         let starting_timestamp = 1698678554;
         let terminal_timestamp = 0;
-        let (mut game, _, _, _, _, _, _) = setup(
+        let (mut game, _, _, _, _, _, _) = deploy_game(
             starting_block, starting_timestamp, terminal_timestamp, 0
         );
         add_adventurer_to_game(ref game, 1, ItemId::Wand);
@@ -1792,7 +1823,8 @@ mod tests {
     //     let starting_block = 364063;
     //     let starting_timestamp = 1698678554;
     //     let terminal_timestamp = 0;
-    //     let (mut game, _, _, _, _, _, _) = setup(starting_block, starting_timestamp, terminal_timestamp, 0);
+    //     let (mut game, _, _, _, _, _, _) = deploy_game(starting_block, starting_timestamp,
+    //     terminal_timestamp, 0);
     //     assert(game.can_play(1), 'should be able to play');
     //     add_adventurer_to_game(ref game, golden_token_id, ItemId::Wand);
     //     assert(!game.can_play(1), 'should not be able to play');
@@ -1811,7 +1843,8 @@ mod tests {
     //     let starting_block = 364063;
     //     let starting_timestamp = 1698678554;
     //     let terminal_timestamp = 0;
-    //     let (mut game, _, _, _, _, _, _) = setup(starting_block, starting_timestamp, terminal_timestamp, 0);
+    //     let (mut game, _, _, _, _, _, _) = deploy_game(starting_block, starting_timestamp,
+    //     terminal_timestamp, 0);
     //     add_adventurer_to_game(ref game, golden_token_id, ItemId::Wand);
     // }
 
@@ -1824,7 +1857,8 @@ mod tests {
     //     let starting_block = 364063;
     //     let starting_timestamp = 1698678554;
     //     let terminal_timestamp = 0;
-    //     let (mut game, _, _, _, _, _, _) = setup(starting_block, starting_timestamp, terminal_timestamp, 0);
+    //     let (mut game, _, _, _, _, _, _) = deploy_game(starting_block, starting_timestamp,
+    //     terminal_timestamp, 0);
     //     add_adventurer_to_game(ref game, golden_token_id, ItemId::Wand);
 
     //     // roll blockchain forward 1 second less than a day
@@ -1858,7 +1892,7 @@ mod tests {
     fn test_different_starter_beasts() {
         let starting_block = 364063;
         let starting_timestamp = 1698678554;
-        let (mut game, _, _, _, _, _, _) = setup(starting_block, starting_timestamp, 0, 0);
+        let (mut game, _, _, _, _, _, _) = deploy_game(starting_block, starting_timestamp, 0, 0);
         let mut game_count = game.get_game_count();
         assert(game_count == 0, 'game count should be 0');
 
@@ -1891,17 +1925,17 @@ mod tests {
         );
         assert(
             starter_beast_game_three >= BeastId::Troll
-                && starter_beast_game_one <= BeastId::Skeleton,
+                && starter_beast_game_three <= BeastId::Skeleton,
             'wrong starter beast game 3'
         );
         assert(
             starter_beast_game_four >= BeastId::Troll
-                && starter_beast_game_one <= BeastId::Skeleton,
+                && starter_beast_game_four <= BeastId::Skeleton,
             'wrong starter beast game 4'
         );
         assert(
             starter_beast_game_five >= BeastId::Troll
-                && starter_beast_game_one <= BeastId::Skeleton,
+                && starter_beast_game_five <= BeastId::Skeleton,
             'wrong starter beast game 5'
         );
 
@@ -1958,7 +1992,8 @@ mod tests {
     }
 
     fn transfer_ownership(mut game: IGameDispatcher, from: ContractAddress, to: ContractAddress) {
-        // Some weird conflict when using the game interface ?? using direct ERC721Dispatcher for now. This is not a problem in blockexplorers, I suspect issue in Scarb compiler.
+        // Some weird conflict when using the game interface ?? using direct ERC721Dispatcher for
+        // now. This is not a problem in blockexplorers, I suspect issue in Scarb compiler.
         IERC721Dispatcher { contract_address: game.contract_address }
             .transfer_from(from, to, ADVENTURER_ID.into());
     }
@@ -2060,10 +2095,10 @@ mod tests {
 
     #[test]
     fn test_set_adventurer_obituary() {
-        // Setup
+        // deploy_game
         let starting_block = 1000;
         let starting_time = 1696201757;
-        let (mut game, _, _, _, _, _, _) = setup(starting_block, starting_time, 0, 0);
+        let (mut game, _, _, _, _, _, _) = deploy_game(starting_block, starting_time, 0, 0);
 
         // Create a new adventurer
         let adventurer_id = 1;
@@ -2098,10 +2133,10 @@ mod tests {
     #[test]
     #[should_panic(expected: ('obituary already set',))]
     fn test_set_adventurer_obituary_twice() {
-        // Setup
+        // deploy_game
         let starting_block = 1000;
         let starting_time = 1696201757;
-        let (mut game, _, _, _, _, _, _) = setup(starting_block, starting_time, 0, 0);
+        let (mut game, _, _, _, _, _, _) = deploy_game(starting_block, starting_time, 0, 0);
 
         // Create a new adventurer
         let adventurer_id = 1;
@@ -2137,10 +2172,10 @@ mod tests {
     #[test]
     #[should_panic(expected: ('obituary window closed',))]
     fn test_set_adventurer_obituary_after_window_closed() {
-        // Setup
+        // deploy_game
         let starting_block = 1000;
         let starting_time = 1696201757;
-        let (mut game, _, _, _, _, _, _) = setup(starting_block, starting_time, 0, 0);
+        let (mut game, _, _, _, _, _, _) = deploy_game(starting_block, starting_time, 0, 0);
 
         // Create a new adventurer
         let adventurer_id = 1;
@@ -2177,10 +2212,10 @@ mod tests {
     #[test]
     #[should_panic(expected: ('Adventurer is still alive',))]
     fn test_set_adventurer_obituary_still_alive() {
-        // Setup
+        // deploy_game
         let starting_block = 1000;
         let starting_time = 1696201757;
-        let (mut game, _, _, _, _, _, _) = setup(starting_block, starting_time, 0, 0);
+        let (mut game, _, _, _, _, _, _) = deploy_game(starting_block, starting_time, 0, 0);
 
         // Create a new adventurer
         let adventurer_id = 1;
@@ -2197,10 +2232,10 @@ mod tests {
 
     #[test]
     fn test_dead_adventurer_metadata() {
-        // Setup
+        // deploy_game
         let starting_block = 1000;
         let starting_time = 1696201757;
-        let (mut game, _, _, _, _, _, _) = setup(starting_block, starting_time, 0, 0);
+        let (mut game, _, _, _, _, _, _) = deploy_game(starting_block, starting_time, 0, 0);
 
         // Create a new adventurer
         let adventurer_id = 1;
@@ -2228,144 +2263,118 @@ mod tests {
 
     #[test]
     fn test_adventurer_death_ranking() {
-        // Setup
-        let shopping_cart = ArrayTrait::<ItemPurchase>::new();
-        let stat_upgrades = Stats {
-            strength: 0, dexterity: 0, vitality: 0, intelligence: 0, wisdom: 0, charisma: 1, luck: 0
+        let mut state = Game::contract_state_for_testing();
+
+        // Create four adventurers
+        let mut adventurer1 = ImplAdventurer::new(ItemId::Wand);
+        let mut adventurer2 = ImplAdventurer::new(ItemId::Wand);
+        let mut adventurer3 = ImplAdventurer::new(ItemId::Wand);
+        let mut adventurer4 = ImplAdventurer::new(ItemId::Wand);
+        let mut adventurer5 = ImplAdventurer::new(ItemId::Wand);
+
+        // Set different XP values to create a ranking
+        adventurer1.xp = 50;
+        adventurer2.xp = 200;
+        adventurer3.xp = 300;
+        adventurer4.xp = 250;
+        adventurer5.xp = 225;
+
+        // Save adventurers to state
+        state._adventurer.write(1, adventurer1);
+        state._adventurer.write(2, adventurer2);
+        state._adventurer.write(3, adventurer3);
+        state._adventurer.write(4, adventurer4);
+        state._adventurer.write(5, adventurer5);
+
+        // Set metadata for each adventurer
+        let current_timestamp = 1000000;
+        let mut metadata = AdventurerMetadata {
+            birth_date: current_timestamp,
+            death_date: 0,
+            rank_at_death: 0,
+            item_specials_seed: 0,
+            level_seed: 0,
+            delay_stat_reveal: false,
+            golden_token_id: 0,
+            launch_tournament_winner_token_id: 0
         };
-        let starting_block = 1000;
-        let mut current_block_time = 1696201757;
-        let (mut game, _, _, _, _, _, _) = setup(starting_block, current_block_time, 0, 0);
 
-        // Create a new adventurer
-        current_block_time += 777;
-        let player1_birth_date = current_block_time;
-        start_cheat_block_timestamp_global(current_block_time);
-        let player1 = add_adventurer_to_game(ref game, 0, ItemId::Wand);
-        game.attack(player1, false);
-        game.upgrade(player1, 0, stat_upgrades, shopping_cart.clone());
-        game.explore(player1, true);
-        current_block_time += 1000;
-        let player1_death_date = current_block_time;
-        start_cheat_block_timestamp_global(current_block_time);
-        game.attack(player1, true);
+        state._adventurer_meta.write(1, metadata);
+        state._adventurer_meta.write(2, metadata);
+        state._adventurer_meta.write(3, metadata);
+        state._adventurer_meta.write(4, metadata);
+        state._adventurer_meta.write(5, metadata);
 
-        // assert adventurer metadata and leaderboard
-        let player1_metadata = game.get_adventurer_meta(player1);
-        let leaderboard = game.get_leaderboard();
-        assert(player1_metadata.birth_date == player1_birth_date, 'Birth date not set correctly');
-        assert(player1_metadata.death_date == player1_death_date, 'Death date not set correctly');
-        assert(player1_metadata.rank_at_death == 1, 'Rank at death not set correctly');
-        assert(leaderboard.first.adventurer_id.into() == player1, 'player1 should be 1st place');
+        let mut adventurer1 = state._adventurer.read(1);
+        _process_adventurer_death(ref state, ref adventurer1, 1, 0, 0, false);
 
-        // introduce second player (new top score)
-        current_block_time += 777;
-        let player2_birth_date = current_block_time;
-        start_cheat_block_timestamp_global(current_block_time);
-        let player2 = add_adventurer_to_game(ref game, 0, ItemId::Wand);
-        game.attack(player2, false);
-        game.upgrade(player2, 1, stat_upgrades, shopping_cart.clone());
-        game.explore(player2, true);
-        current_block_time += 777;
-        let player2_death_date = current_block_time;
-        start_cheat_block_timestamp_global(current_block_time);
-        game.upgrade(player2, 1, stat_upgrades, shopping_cart.clone());
-        game.explore(player2, true);
-        game.attack(player2, true);
+        let mut adventurer2 = state._adventurer.read(2);
+        _process_adventurer_death(ref state, ref adventurer2, 2, 0, 0, false);
 
-        // assert adventurer metadata and leaderboard
-        let player1_metadata = game.get_adventurer_meta(player1);
-        let player2_metadata = game.get_adventurer_meta(player2);
-        let leaderboard = game.get_leaderboard();
-        assert(player2_metadata.birth_date == player2_birth_date, 'Birth date not set correctly');
-        assert(player2_metadata.death_date == player2_death_date, 'Death date not set correctly');
-        assert(player2_metadata.rank_at_death == 1, 'P2 should be death rank 1');
-        assert(player1_metadata.rank_at_death == 1, 'P1 should be death rank 1');
-        assert(leaderboard.first.adventurer_id.into() == player2, 'P2 should be 1st on LB');
-        assert(leaderboard.second.adventurer_id.into() == player1, 'P1 should be 2nd on LB');
+        let mut adventurer3 = state._adventurer.read(3);
+        _process_adventurer_death(ref state, ref adventurer3, 3, 0, 0, false);
 
-        // introduce third player (new top score)
-        current_block_time += 777;
-        let player3_birth_date = current_block_time;
-        start_cheat_block_timestamp_global(current_block_time);
-        let player3 = add_adventurer_to_game(ref game, 0, ItemId::Wand);
-        game.attack(player3, false);
-        let stat_upgrades = Stats {
-            strength: 0, dexterity: 1, vitality: 0, intelligence: 0, wisdom: 0, charisma: 0, luck: 0
-        };
-        game.upgrade(player3, 1, stat_upgrades, shopping_cart.clone());
-        game.explore(player3, true);
-        game.flee(player3, true);
-        game.explore(player3, true);
-        game.upgrade(player3, 0, stat_upgrades, shopping_cart.clone());
-        game.explore(player3, true);
-        game.upgrade(player3, 0, stat_upgrades, shopping_cart.clone());
-        game.explore(player3, true);
-        game.attack(player3, true);
-        game.explore(player3, true);
-        game.upgrade(player3, 0, stat_upgrades, shopping_cart.clone());
-        game.explore(player3, true);
-        current_block_time += 777;
-        let player3_death_date = current_block_time;
-        start_cheat_block_timestamp_global(current_block_time);
-        game.attack(player3, true);
+        let mut adventurer4 = state._adventurer.read(4);
+        _process_adventurer_death(ref state, ref adventurer4, 4, 0, 0, false);
 
-        // assert adventurer metadata and leaderboard
-        let player3_metadata = game.get_adventurer_meta(player3);
-        let player2_metadata = game.get_adventurer_meta(player2);
-        let player1_metadata = game.get_adventurer_meta(player1);
-        let leaderboard = game.get_leaderboard();
-        assert(
-            player3_metadata.death_date == player3_death_date, 'P3 death date not set correctly'
-        );
-        assert(
-            player3_metadata.birth_date == player3_birth_date, 'P3 birth date not set correctly'
-        );
-        assert(player3_metadata.rank_at_death == 1, 'P3 should be death rank 1');
-        assert(player2_metadata.rank_at_death == 1, 'P2 should be death rank 1');
-        assert(player1_metadata.rank_at_death == 1, 'P1 should be death rank 1');
-        assert(leaderboard.first.adventurer_id.into() == player3, 'P3 should be 1st on LB');
-        assert(leaderboard.second.adventurer_id.into() == player2, 'P2 should be 2nd on LB');
-        assert(leaderboard.third.adventurer_id.into() == player1, 'P1 should be 3rd on LB');
+        // Check leaderboard
+        let leaderboard = state.get_leaderboard();
+        assert(leaderboard.first.adventurer_id.into() == 3, 'P3 should be 1st on LB');
+        assert(leaderboard.second.adventurer_id.into() == 4, 'P4 should be 2nd on LB');
+        assert(leaderboard.third.adventurer_id.into() == 2, 'P2 should be 3rd on LB');
 
-        // introduce fourth player (2nd place finish)
-        current_block_time += 777;
-        let player4_birth_date = current_block_time;
-        start_cheat_block_timestamp_global(current_block_time);
-        let player4 = add_adventurer_to_game(ref game, 0, ItemId::Wand);
-        game.attack(player4, false);
-        game.upgrade(player4, 0, stat_upgrades, shopping_cart.clone());
-        game.explore(player4, true);
-        game.upgrade(player4, 0, stat_upgrades, shopping_cart.clone());
-        game.explore(player4, true);
-        game.attack(player4, true);
-        game.explore(player4, true);
-        game.upgrade(player4, 0, stat_upgrades, shopping_cart.clone());
-        game.explore(player4, true);
-        current_block_time += 777;
-        let player4_death_date = current_block_time;
-        start_cheat_block_timestamp_global(current_block_time);
-        game.attack(player4, true);
+        // Check rank at death
+        let metadata1 = state._adventurer_meta.read(1);
+        let metadata2 = state._adventurer_meta.read(2);
+        let metadata3 = state._adventurer_meta.read(3);
+        let metadata4 = state._adventurer_meta.read(4);
 
-        // assert adventurer metadata and leaderboard
-        let player1_metadata = game.get_adventurer_meta(player1);
-        let player2_metadata = game.get_adventurer_meta(player2);
-        let player3_metadata = game.get_adventurer_meta(player3);
-        let player4_metadata = game.get_adventurer_meta(player4);
-        let leaderboard = game.get_leaderboard();
-        assert(
-            player4_metadata.birth_date == player4_birth_date, 'P4 birth date not set correctly'
-        );
-        assert(
-            player4_metadata.death_date == player4_death_date, 'P4 death date not set correctly'
-        );
-        assert(player4_metadata.rank_at_death == 2, 'P4 should be death rank 2');
-        assert(player3_metadata.rank_at_death == 1, 'P3 should be death rank 1');
-        assert(player2_metadata.rank_at_death == 1, 'P2 should be death rank 1');
-        assert(player1_metadata.rank_at_death == 1, 'P1 should be death rank 1');
-        assert(leaderboard.first.adventurer_id.into() == player3, 'P3 should be 1st on LB');
-        assert(leaderboard.second.adventurer_id.into() == player4, 'P4 should be 2nd on LB');
-        assert(leaderboard.third.adventurer_id.into() == player2, 'P2 should be 3rd on LB');
+        // adventurer 1 technically finished first but their score wasn't above 100xp
+        // so they don't get a qualified rank
+        assert(metadata1.rank_at_death == 0, 'P1 should be death rank 0');
+
+        // adventurer 2 finished first and above 100xp so they get a death rank
+        assert(metadata2.rank_at_death == 1, 'P2 should be death rank 1');
+
+        // adventurer 3 finished higher than adventurer 2 so they now also get death rank 1
+        assert(metadata3.rank_at_death == 1, 'P3 should be death rank 1');
+
+        // verify adventurer 2 is still death rank 1 too
+        let metadata2 = state._adventurer_meta.read(2);
+        assert(metadata2.rank_at_death == 1, 'P2 should be death rank 1');
+
+        // adventurer 4 finishes above 100xp in 2nd place so they get death rank 2
+        assert(metadata4.rank_at_death == 2, 'P4 should be death rank 2');
+
+        // verify adventurer 2 and 3 still have rank 1
+        let metadata2 = state._adventurer_meta.read(2);
+        let metadata3 = state._adventurer_meta.read(3);
+        assert(metadata2.rank_at_death == 1, 'P2 should be death rank 1');
+        assert(metadata3.rank_at_death == 1, 'P3 should be death rank 1');
+
+        // adventurer 5 dies and finishes 3rd
+        let mut adventurer5 = state._adventurer.read(5);
+        _process_adventurer_death(ref state, ref adventurer5, 5, 0, 0, false);
+
+        // check leaderboard
+        let leaderboard = state.get_leaderboard();
+        assert(leaderboard.first.adventurer_id.into() == 3, 'P3 should be 1st on LB');
+        assert(leaderboard.second.adventurer_id.into() == 4, 'P4 should be 2nd on LB');
+        assert(leaderboard.third.adventurer_id.into() == 5, 'P5 should be 3rd on LB');
+
+        // assert death rank from meta data
+        let metadata5 = state._adventurer_meta.read(5);
+        assert(metadata5.rank_at_death == 3, 'P5 should be death rank 3');
+
+        // verify other adventurers still have same death rank
+        let metadata1 = state._adventurer_meta.read(1);
+        let metadata2 = state._adventurer_meta.read(2);
+        let metadata3 = state._adventurer_meta.read(3);
+        let metadata4 = state._adventurer_meta.read(4);
+        assert(metadata1.rank_at_death == 0, 'P1 should be death rank 0');
+        assert(metadata2.rank_at_death == 1, 'P2 should be death rank 1');
+        assert(metadata3.rank_at_death == 1, 'P3 should be death rank 1');
+        assert(metadata4.rank_at_death == 2, 'P4 should be death rank 2');
     }
 
     #[test]
@@ -2376,14 +2385,17 @@ mod tests {
 
         // use one week for launch tournament
         let genesis_tournament_end = current_block_time + 7 * 24 * 60 * 60;
-        let (mut game, _, _, _, _, _, _) = setup(
+        let (mut game, _, _, _, _, _, _) = deploy_game(
             starting_block, current_block_time, 0, genesis_tournament_end
         );
 
         // set block timestamp to one second after the launch tournament end
         start_cheat_block_timestamp_global(genesis_tournament_end + 1);
         // try to enter launch tournament should panic
-        game.enter_genesis_tournament(12, 123, ZERO_ADDRESS(), false, ZERO_ADDRESS(), 0);
+        game
+            .enter_launch_tournament(
+                12, 123, ZERO_ADDRESS(), false, ZERO_ADDRESS(), 0, ZERO_ADDRESS()
+            );
     }
 
     #[test]
@@ -2394,12 +2406,15 @@ mod tests {
 
         // use one week for launch tournament
         let genesis_tournament_end = current_block_time + 7 * 24 * 60 * 60;
-        let (mut game, _, _, _, _, _, _) = setup(
+        let (mut game, _, _, _, _, _, _) = deploy_game(
             starting_block, current_block_time, 0, genesis_tournament_end
         );
 
         // try to enter launch tournament should panic
-        game.enter_genesis_tournament(12, 123, ZERO_ADDRESS(), false, ZERO_ADDRESS(), 0);
+        game
+            .enter_launch_tournament(
+                12, 123, ZERO_ADDRESS(), false, ZERO_ADDRESS(), 0, ZERO_ADDRESS()
+            );
     }
 
     #[test]
@@ -2410,7 +2425,7 @@ mod tests {
 
         // use one week for launch tournament
         let genesis_tournament_end = current_block_time + 7 * 24 * 60 * 60;
-        let (mut game, _, _, _, _, blobert_dispatcher, _) = setup(
+        let (mut game, _, _, _, _, blobert_dispatcher, _) = deploy_game(
             starting_block, current_block_time, 0, genesis_tournament_end
         );
 
@@ -2419,8 +2434,14 @@ mod tests {
 
         // try to enter tournament with a wallet that doesn't own the qualifying token
         game
-            .enter_genesis_tournament(
-                12, 123, ZERO_ADDRESS(), false, blobert_dispatcher.contract_address, 1
+            .enter_launch_tournament(
+                12,
+                123,
+                ZERO_ADDRESS(),
+                false,
+                blobert_dispatcher.contract_address,
+                1,
+                ZERO_ADDRESS()
             );
     }
 
@@ -2432,45 +2453,66 @@ mod tests {
 
         // use one week for launch tournament
         let genesis_tournament_end = current_block_time + 7 * 24 * 60 * 60;
-        let (mut game, _, _, _, _, blobert_dispatcher, _) = setup(
+        let (mut game, _, _, _, _, blobert_dispatcher, _) = deploy_game(
             starting_block, current_block_time, 0, genesis_tournament_end
         );
 
         // Enter genesis tournament using token id 1
         game
-            .enter_genesis_tournament(
-                12, 123, ZERO_ADDRESS(), false, blobert_dispatcher.contract_address, 1
+            .enter_launch_tournament(
+                12,
+                123,
+                ZERO_ADDRESS(),
+                false,
+                blobert_dispatcher.contract_address,
+                1,
+                ZERO_ADDRESS()
             );
 
         // try to enter tournament with the same token id again
         // should panic
         game
-            .enter_genesis_tournament(
-                12, 123, ZERO_ADDRESS(), false, blobert_dispatcher.contract_address, 1
+            .enter_launch_tournament(
+                12,
+                123,
+                ZERO_ADDRESS(),
+                false,
+                blobert_dispatcher.contract_address,
+                1,
+                ZERO_ADDRESS()
             );
     }
 
     #[test]
-    fn test_genesis_tournament_success() {
+    fn test_enter_genesis_tournament_success() {
         let starting_block = 1000;
         let mut current_block_time = 1696201757;
 
         // use one week for launch tournament
         let genesis_tournament_end = current_block_time + 7 * 24 * 60 * 60;
-        let (mut game, _, _, _, _, blobert_dispatcher, _) = setup(
+        let (mut game, _, _, _, _, blobert_dispatcher, _) = deploy_game(
             starting_block, current_block_time, 0, genesis_tournament_end
         );
 
         // Enter genesis tournament using token id 1
-        let adventurer_id = game
-            .enter_genesis_tournament(
-                12, 123, ZERO_ADDRESS(), false, blobert_dispatcher.contract_address, 1
+        let adventurer_ids = game
+            .enter_launch_tournament(
+                12,
+                123,
+                ZERO_ADDRESS(),
+                false,
+                blobert_dispatcher.contract_address,
+                1,
+                ZERO_ADDRESS()
             );
 
+        // assert the claim resulted in 1 game being minted
+        assert(adventurer_ids.len() == 1, 'Wrong number of adventurer ids');
+
         // get adventurer id details and assert they are correct
-        let adventurer_meta = game.get_adventurer_meta(adventurer_id);
-        let adventurer_name = game.get_adventurer_name(adventurer_id);
-        let adventurer = game.get_adventurer(adventurer_id);
+        let adventurer_meta = game.get_adventurer_meta(*adventurer_ids.at(0));
+        let adventurer_name = game.get_adventurer_name(*adventurer_ids.at(0));
+        let adventurer = game.get_adventurer(*adventurer_ids.at(0));
         assert(adventurer_name == 123, 'Name not set correctly');
         assert(adventurer_meta.birth_date == current_block_time, 'birthdate not set correctly');
         assert(adventurer.equipment.weapon.id == 12, 'Weapon not set correctly');
@@ -2480,6 +2522,8 @@ mod tests {
     #[test]
     fn test_get_and_set_adventurer_name() {
         let mut state = Game::contract_state_for_testing();
+        let mut adventurer = ImplAdventurer::new(ItemId::Wand);
+        state._adventurer.write(1, adventurer);
         state._adventurer_name.write(1, 'test1');
         let adventurer_name = state.get_adventurer_name(1);
         assert(adventurer_name == 'test1', 'name not set correctly');
@@ -2523,7 +2567,10 @@ mod tests {
         assert(item_leveled_up_event.specials.special1 != 0, 'special1 should be set');
         assert(item_leveled_up_event.specials.special2 != 0, 'special2 should be set');
         assert(item_leveled_up_event.specials.special3 != 0, 'special3 should be set');
-        assert(adventurer.stat_upgrades_available == prev_stat_upgrades_available, 'wrong stats available');
+        assert(
+            adventurer.stat_upgrades_available == prev_stat_upgrades_available,
+            'wrong stats available'
+        );
     }
 
     #[test]
@@ -2560,7 +2607,10 @@ mod tests {
         assert(item_leveled_up_event.specials.special1 != 0, 'special1 should be set');
         assert(item_leveled_up_event.specials.special2 == 0, 'special2 should be set');
         assert(item_leveled_up_event.specials.special3 == 0, 'special3 should be set');
-        assert(adventurer.stat_upgrades_available == prev_stat_upgrades_available, 'wrong stats available');
+        assert(
+            adventurer.stat_upgrades_available == prev_stat_upgrades_available,
+            'wrong stats available'
+        );
     }
 
     #[test]
@@ -2597,7 +2647,10 @@ mod tests {
         assert(item_leveled_up_event.specials.special1 == 0, 'special1 should not be set');
         assert(item_leveled_up_event.specials.special2 == 0, 'special2 should not be set');
         assert(item_leveled_up_event.specials.special3 == 0, 'special3 should not be set');
-        assert(adventurer.stat_upgrades_available == prev_stat_upgrades_available, 'wrong stats available');
+        assert(
+            adventurer.stat_upgrades_available == prev_stat_upgrades_available,
+            'wrong stats available'
+        );
     }
 
     #[test]
@@ -2634,7 +2687,10 @@ mod tests {
         assert(item_leveled_up_event.specials.special1 != 0, 'special1 should be set');
         assert(item_leveled_up_event.specials.special2 != 0, 'special2 should be set');
         assert(item_leveled_up_event.specials.special3 != 0, 'special3 should be set');
-        assert(adventurer.stat_upgrades_available == prev_stat_upgrades_available + 1, 'wrong stats available');
+        assert(
+            adventurer.stat_upgrades_available == prev_stat_upgrades_available + 1,
+            'wrong stats available'
+        );
     }
 
     #[test]
@@ -2671,6 +2727,367 @@ mod tests {
         assert(item_leveled_up_event.specials.special1 != 0, 'special1 should be set');
         assert(item_leveled_up_event.specials.special2 != 0, 'special2 should be set');
         assert(item_leveled_up_event.specials.special3 != 0, 'special3 should be set');
-        assert(adventurer.stat_upgrades_available == prev_stat_upgrades_available, 'wrong stats available');
+        assert(
+            adventurer.stat_upgrades_available == prev_stat_upgrades_available,
+            'wrong stats available'
+        );
+    }
+
+    #[test]
+    fn test_vrf_premiums_address_can_withdraw_eth() {
+        let (mut game, _, eth_dispatcher, _, _, _, _) = deploy_game(0, 0, 0, 0);
+
+        // change caller to the VRF premiums address
+        start_cheat_caller_address_global(VRF_PREMIUMS_ADDRESS());
+
+        // verify it has ability to withdraw all ETH from the game contract
+        eth_dispatcher
+            .transfer_from(
+                game.contract_address, VRF_PREMIUMS_ADDRESS(), 10000000000000000000000000000000
+            );
+    }
+
+    #[test]
+    #[should_panic(expected: ('ERC20: insufficient allowance',))]
+    fn test_non_vrf_premiums_address_cannot_withdraw_eth() {
+        let (mut game, _, eth_dispatcher, _, _, _, _) = deploy_game(0, 0, 0, 0);
+
+        // change caller to the VRF premiums address
+        start_cheat_caller_address_global(ARBITRARY_ADDRESS());
+
+        // verify it has ability to withdraw all ETH from the game contract
+        eth_dispatcher
+            .transfer_from(
+                game.contract_address, ARBITRARY_ADDRESS(), 10000000000000000000000000000000
+            );
+    }
+
+    #[test]
+    #[should_panic(expected: ('ERC20: insufficient allowance',))]
+    fn test_non_vrf_premiums_address_cannot_withdraw_to_vrf_premiums_address() {
+        let (mut game, _, eth_dispatcher, _, _, _, _) = deploy_game(0, 0, 0, 0);
+
+        // change caller to the VRF premiums address
+        start_cheat_caller_address_global(ARBITRARY_ADDRESS());
+
+        // verify it has ability to withdraw all ETH from the game contract
+        eth_dispatcher
+            .transfer_from(
+                game.contract_address, VRF_PREMIUMS_ADDRESS(), 10000000000000000000000000000000
+            );
+    }
+
+    #[test]
+    fn test_record_client_provider_address() {
+        let (mut game, _, _, _, _, _, _) = deploy_game(0, 0, 0, 0);
+        let player1 = add_adventurer_to_game(ref game, 0, ItemId::Wand);
+        // get adventurer metadata
+        let client_provider_address = game.get_client_provider(player1);
+        assert(client_provider_address == INTERFACE_ID(), 'wrong client provider address');
+    }
+
+    #[test]
+    fn test_golden_token_id_is_set() {
+        let (mut game, _, _, _, _, _, _) = deploy_game(0, 0, 0, 0);
+        let player1 = add_adventurer_to_game(ref game, 0, ItemId::Wand);
+        let player2 = add_adventurer_to_game(ref game, 1, ItemId::Wand);
+        let player3 = add_adventurer_to_game(ref game, 160, ItemId::Wand);
+        let player1_meta = game.get_adventurer_meta(player1);
+        let player2_meta = game.get_adventurer_meta(player2);
+        let player3_meta = game.get_adventurer_meta(player3);
+
+        assert(player1_meta.golden_token_id == 0, 'golden token id should be 0');
+        assert(player2_meta.golden_token_id == 1, 'golden token id should be 1');
+        assert(player3_meta.golden_token_id == 160, 'golden token id should be 160');
+    }
+    #[test]
+    fn test_update_adventurer_name() {
+        // Deploy the game
+        let starting_block = 1000;
+        let starting_time = 1696201757;
+        let (mut game, _, _, _, _, _, _) = deploy_game(starting_block, starting_time, 0, 0);
+
+        // Create a new adventurer
+        let adventurer_id = add_adventurer_to_game(ref game, 0, ItemId::Wand);
+
+        // Get the initial name
+        let initial_name = game.get_adventurer_name(adventurer_id);
+
+        // Update the adventurer's name
+        let new_name: felt252 = 'New Adventurer Name';
+        game.update_adventurer_name(adventurer_id, new_name);
+
+        // Get the updated name
+        let updated_name = game.get_adventurer_name(adventurer_id);
+
+        // Assert that the name has been updated correctly
+        assert(initial_name != new_name, 'Name did not change');
+        assert(updated_name == new_name, 'Name not updated correctly');
+    }
+
+    #[test]
+    #[should_panic(expected: ('Adventurer is dead',))]
+    fn test_update_adventurer_name_dead() {
+        start_cheat_chain_id_global(TESTING_CHAIN_ID);
+        let mut state = Game::contract_state_for_testing();
+        let new_adventurer = ImplAdventurer::new(ItemId::Wand);
+        // save adventurer to state
+        state._adventurer.write(1, new_adventurer);
+        // verify adventurer state
+        let mut adventurer = state.get_adventurer(1);
+        assert(adventurer.health == 100, 'health should be 100');
+        assert(adventurer.equipment.weapon.id == ItemId::Wand, 'weapon id should be wand');
+
+        // kill adventurer
+        adventurer.health = 0;
+        state._adventurer.write(1, adventurer);
+
+        // try to update adventurer name, should panic
+        state.update_adventurer_name(1, 'New Name');
+    }
+
+    #[test]
+    #[should_panic(expected: ('Not authorized to act',))]
+    fn test_update_adventurer_name_not_owner() {
+        let (mut game, _, _, _, _, _, _) = deploy_game(0, 0, 0, 0);
+        let adventurer_id = add_adventurer_to_game(ref game, 0, ItemId::Wand);
+
+        // change caller to a different address
+        start_cheat_caller_address_global(ARBITRARY_ADDRESS());
+
+        // try to change adventurer's name, should panic
+        game.update_adventurer_name(adventurer_id, 'New Name');
+    }
+
+    #[test]
+    #[should_panic(expected: ('Game has expired',))]
+    fn test_update_adventurer_name_game_expired() {
+        // deploy_game
+        let starting_block = 1000;
+        let starting_time = 1696201757;
+        let (mut game, _, _, _, _, _, _) = deploy_game(starting_block, starting_time, 0, 0);
+
+        // Create a new adventurer
+        let adventurer_id = 1;
+        add_adventurer_to_game(ref game, 0, ItemId::Wand);
+
+        let beyond_expiry_date = starting_time
+            + (GAME_EXPIRY_DAYS.into() * SECONDS_IN_DAY.into())
+            + 1;
+        start_cheat_block_timestamp_global(beyond_expiry_date);
+        game.update_adventurer_name(adventurer_id, 'New Name');
+    }
+
+    #[test]
+    fn test_initialize_launch_tournament() {
+        // Initialize the contract state for testing
+        let mut state = Game::contract_state_for_testing();
+
+        // Create a span of qualifying collections
+        let mut qualifying_collections = ArrayTrait::<LaunchTournamentCollections>::new();
+        qualifying_collections
+            .append(
+                LaunchTournamentCollections {
+                    collection_address: contract_address_const::<1>(), games_per_token: 1
+                }
+            );
+        qualifying_collections
+            .append(
+                LaunchTournamentCollections {
+                    collection_address: contract_address_const::<2>(), games_per_token: 2
+                }
+            );
+        qualifying_collections
+            .append(
+                LaunchTournamentCollections {
+                    collection_address: contract_address_const::<3>(), games_per_token: 3
+                }
+            );
+        // Call the internal function
+        _initialize_launch_tournament(ref state, qualifying_collections.span());
+
+        // Verify the results
+        let collections_len = state._launch_tournament_collections.len();
+        assert(collections_len == 3, 'Wrong number of collections');
+
+        // Check each collection is properly stored
+        assert(
+            state._launch_tournament_collections.at(0).read() == contract_address_const::<1>(),
+            'Wrong collection at index 0'
+        );
+        assert(
+            state._launch_tournament_collections.at(1).read() == contract_address_const::<2>(),
+            'Wrong collection at index 1'
+        );
+        assert(
+            state._launch_tournament_collections.at(2).read() == contract_address_const::<3>(),
+            'Wrong collection at index 2'
+        );
+
+        // Verify scores are initialized to 1
+        assert(
+            state._launch_tournament_scores.read(contract_address_const::<1>()) == 1,
+            'Wrong score for collection 1'
+        );
+        assert(
+            state._launch_tournament_scores.read(contract_address_const::<2>()) == 1,
+            'Wrong score for collection 2'
+        );
+        assert(
+            state._launch_tournament_scores.read(contract_address_const::<3>()) == 1,
+            'Wrong score for collection 3'
+        );
+
+        // Verify a non-qualifying collection has a score of 0
+        assert(
+            state._launch_tournament_scores.read(contract_address_const::<4>()) == 0,
+            'collection should have 0 score'
+        );
+
+        // assert the number of games per token is 1
+        assert(
+            state._launch_tournament_games_per_claim.read(contract_address_const::<1>()) == 1,
+            'games per token collection 1'
+        );
+
+        // assert the number of games per token is 2
+        assert(
+            state._launch_tournament_games_per_claim.read(contract_address_const::<2>()) == 2,
+            'games per token collection 2'
+        );
+
+        // assert the number of games per token is 3
+        assert(
+            state._launch_tournament_games_per_claim.read(contract_address_const::<3>()) == 3,
+            'games per token collection 3'
+        );
+    }
+
+    #[test]
+    fn test_settle_launch_tournament() {
+        // Initialize the contract state for testing
+        let mut state = Game::contract_state_for_testing();
+
+        // Create a span of qualifying collections
+        let mut qualifying_collections = ArrayTrait::<LaunchTournamentCollections>::new();
+        qualifying_collections
+            .append(
+                LaunchTournamentCollections {
+                    collection_address: contract_address_const::<1>(), games_per_token: 1
+                }
+            );
+        qualifying_collections
+            .append(
+                LaunchTournamentCollections {
+                    collection_address: contract_address_const::<2>(), games_per_token: 2
+                }
+            );
+        qualifying_collections
+            .append(
+                LaunchTournamentCollections {
+                    collection_address: contract_address_const::<3>(), games_per_token: 3
+                }
+            );
+
+        // Initialize the launch tournament
+        _initialize_launch_tournament(ref state, qualifying_collections.span());
+
+        // Set different scores for each collection
+        state._launch_tournament_scores.write(contract_address_const::<1>(), 100);
+        state._launch_tournament_scores.write(contract_address_const::<2>(), 200);
+        state._launch_tournament_scores.write(contract_address_const::<3>(), 150);
+
+        // Set the tournament end time to a past timestamp
+        let current_timestamp = 1000000;
+        state._launch_tournament_end_time.write(current_timestamp - 1);
+
+        // Mock the block timestamp
+        start_cheat_block_timestamp_global(current_timestamp);
+
+        // Call the settle_launch_tournament function
+        state.settle_launch_tournament();
+
+        // Verify the results
+        let champions_dispatcher = state._launch_tournament_champions_dispatcher.read();
+        assert(
+            champions_dispatcher.contract_address == contract_address_const::<2>(),
+            'Wrong champion collection'
+        );
+    }
+    #[test]
+    #[should_panic(expected: ('tournament still active',))]
+    fn test_settle_launch_tournament_before_end() {
+        // Initialize the contract state for testing
+        let mut state = Game::contract_state_for_testing();
+
+        // Create a span of qualifying collections
+        let mut qualifying_collections = ArrayTrait::<LaunchTournamentCollections>::new();
+        qualifying_collections
+            .append(
+                LaunchTournamentCollections {
+                    collection_address: contract_address_const::<1>(), games_per_token: 1
+                }
+            );
+        qualifying_collections
+            .append(
+                LaunchTournamentCollections {
+                    collection_address: contract_address_const::<2>(), games_per_token: 2
+                }
+            );
+
+        // Initialize the launch tournament
+        _initialize_launch_tournament(ref state, qualifying_collections.span());
+
+        // Set the tournament end time to a future timestamp
+        let current_timestamp = 1000000;
+        state._launch_tournament_end_time.write(current_timestamp + 1000);
+
+        // Mock the block timestamp to be before the end time
+        start_cheat_block_timestamp_global(current_timestamp);
+
+        // Attempt to settle the tournament before it has ended (should panic)
+        state.settle_launch_tournament();
+    }
+
+    #[test]
+    #[should_panic(expected: ('tournament already settled',))]
+    fn test_settle_launch_tournament_twice() {
+        // Initialize the contract state for testing
+        let mut state = Game::contract_state_for_testing();
+
+        // Create a span of qualifying collections
+        let mut qualifying_collections = ArrayTrait::<LaunchTournamentCollections>::new();
+        qualifying_collections
+            .append(
+                LaunchTournamentCollections {
+                    collection_address: contract_address_const::<1>(), games_per_token: 1
+                }
+            );
+        qualifying_collections
+            .append(
+                LaunchTournamentCollections {
+                    collection_address: contract_address_const::<2>(), games_per_token: 2
+                }
+            );
+
+        // Initialize the launch tournament
+        _initialize_launch_tournament(ref state, qualifying_collections.span());
+
+        // Set different scores for each collection
+        state._launch_tournament_scores.write(contract_address_const::<1>(), 100);
+        state._launch_tournament_scores.write(contract_address_const::<2>(), 200);
+
+        // Set the tournament end time to a past timestamp
+        let current_timestamp = 1000000;
+        state._launch_tournament_end_time.write(current_timestamp - 1);
+
+        // Mock the block timestamp
+        start_cheat_block_timestamp_global(current_timestamp);
+
+        // Settle the tournament for the first time
+        state.settle_launch_tournament();
+
+        // Attempt to settle the tournament again (should panic)
+        state.settle_launch_tournament();
     }
 }

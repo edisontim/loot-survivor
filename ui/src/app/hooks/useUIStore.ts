@@ -106,6 +106,10 @@ type State = {
   setEntropyReady: (value: boolean) => void;
   fetchUnlocksEntropy: boolean;
   setFetchUnlocksEntropy: (value: boolean) => void;
+  adventurerLeveledUp: boolean;
+  setAdventurerLeveledUp: (value: boolean) => void;
+  g20Unlock: boolean;
+  setG20Unlock: (value: boolean) => void;
   loginScreen: boolean;
   setLoginScreen: (value: boolean) => void;
   network: Network;
@@ -133,6 +137,10 @@ type State = {
   setControllerAdmin: (value: string) => void;
   tillDeath: boolean;
   setTillDeath: (value: boolean) => void;
+  transferredAdventurerIds: number[];
+  setTransferredAdventurerIds: (value: number[]) => void;
+  openInterlude: boolean;
+  setOpenInterlude: (value: boolean) => void;
 };
 
 const useUIStore = create<State>((set) => ({
@@ -243,8 +251,17 @@ const useUIStore = create<State>((set) => ({
   setControllerAdmin: (value) => set({ controllerAdmin: value }),
   fetchUnlocksEntropy: false,
   setFetchUnlocksEntropy: (value) => set({ fetchUnlocksEntropy: value }),
+  adventurerLeveledUp: false,
+  setAdventurerLeveledUp: (value) => set({ adventurerLeveledUp: value }),
+  g20Unlock: false,
+  setG20Unlock: (value) => set({ g20Unlock: value }),
   tillDeath: true,
   setTillDeath: (value) => set({ tillDeath: value }),
+  transferredAdventurerIds: [],
+  setTransferredAdventurerIds: (value) =>
+    set({ transferredAdventurerIds: value }),
+  openInterlude: false,
+  setOpenInterlude: (value) => set({ openInterlude: value }),
 }));
 
 export default useUIStore;

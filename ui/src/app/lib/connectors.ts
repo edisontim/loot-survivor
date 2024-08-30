@@ -1,5 +1,4 @@
 import { Connector } from "@starknet-react/core";
-import { InjectedConnector } from "starknetkit/injected";
 import CartridgeConnector from "@cartridge/connector";
 import { shortString } from "starknet";
 // import { WebWalletConnector } from "starknetkit/webwallet";
@@ -16,10 +15,7 @@ export const getArcadeConnectors = (connectors: Connector[]) => {
 };
 
 export const getWalletConnectors = (connectors: Connector[]) =>
-  connectors.filter(
-    (connector) =>
-      typeof connector.id !== "string" || !connector.id.includes("0x")
-  );
+  connectors.filter((connector) => connector.id !== "cartridge");
 
 export const checkCartridgeConnector = (connector?: Connector) => {
   return connector?.id === "cartridge";
@@ -53,13 +49,13 @@ export const providerInterfaceCamel = (provider: string) => {
 //   url: argentWebWalletUrl(),
 // });
 
-const cartridgeConnector = (
+export const cartridgeConnector = (
   gameAddress: string,
   lordsAddress: string,
   ethAddress: string
 ) =>
-  new CartridgeConnector(
-    [
+  new CartridgeConnector({
+    policies: [
       {
         target: gameAddress,
         method: "new_game",
@@ -89,6 +85,10 @@ const cartridgeConnector = (
         method: "upgrade",
       },
       {
+        target: gameAddress,
+        method: "transfer_from",
+      },
+      {
         target: lordsAddress,
         method: "approve",
       },
@@ -101,21 +101,8 @@ const cartridgeConnector = (
         method: "approve",
       },
     ],
-    {
-      paymaster: {
-        caller: shortString.encodeShortString("ANY_CALLER"),
-      },
-      theme: "loot-survivor",
-    }
-  ) as never as Connector;
-
-export const connectors = (
-  gameAddress: string,
-  lordsAddress: string,
-  ethAddress: string
-) => [
-  cartridgeConnector(gameAddress, lordsAddress, ethAddress),
-  new InjectedConnector({ options: { id: "braavos", name: "Braavos" } }),
-  new InjectedConnector({ options: { id: "argentX", name: "Argent X" } }),
-  // argentWebWalletConnector,
-];
+    paymaster: {
+      caller: shortString.encodeShortString("ANY_CALLER"),
+    },
+    theme: "loot-survivor",
+  }) as never as Connector;

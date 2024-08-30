@@ -7,8 +7,11 @@ import {
   HideIcon,
   MagicIcon,
   MetalIcon,
+  InfoIcon,
+  DownArrowIcon,
 } from "@/app/components/icons/Icons";
 import LootIcon from "@/app/components/icons/LootIcon";
+import React, { useMemo, useState } from "react";
 import useAdventurerStore from "@/app/hooks/useAdventurerStore";
 import { useQueriesStore } from "@/app/hooks/useQueryStore";
 import useUIStore from "@/app/hooks/useUIStore";
@@ -21,7 +24,6 @@ import {
   listAllEncounters,
   Step,
 } from "@/app/lib/utils/processFutures";
-import React, { useMemo } from "react";
 import Draggable from "react-draggable";
 import { MdClose } from "react-icons/md";
 
@@ -30,6 +32,9 @@ const EncounterTable = () => {
   const adventurerEntropy = useUIStore((state) => state.adventurerEntropy);
   const showEncounterTable = useUIStore((state) => state.showEncounterTable);
   const hasBeast = useAdventurerStore((state) => state.computed.hasBeast);
+
+  const [hoveredBeast, setHoveredBeast] = useState<number | null>(null);
+
   const formattedAdventurerEntropy = BigInt(adventurerEntropy);
   const purchaseItems = useUIStore((state) => state.purchaseItems);
   const potionAmount = useUIStore((state) => state.potionAmount);
