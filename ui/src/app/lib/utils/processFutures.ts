@@ -124,7 +124,7 @@ const recurseTree = (
   tree: TreeNode,
   items: Item[],
   adventurerEntropy: bigint,
-  hasBeast: boolean,
+  currentlyFighting: boolean,
   adventurerLevel: number
 ) => {
   let currentAdventurer = structuredClone(tree.state);
@@ -152,6 +152,8 @@ const recurseTree = (
 
   const currentEncounter = tree.encounter;
 
+  currentAdventurer.beastHealth = currentEncounter?.health || 0;
+
   if (currentEncounter?.encounter === "Beast") {
     if (tree.fight === undefined) {
       const fightNode = processBeastEncounterCombat(
@@ -159,7 +161,7 @@ const recurseTree = (
         currentEncounter,
         items,
         adventurerEntropy,
-        hasBeast
+        currentlyFighting
       );
 
       tree.fight = fightNode;
@@ -171,7 +173,7 @@ const recurseTree = (
         currentEncounter,
         items,
         adventurerEntropy,
-        hasBeast
+        currentlyFighting
       );
       tree.flee = fleeNode;
       recurseTree(fleeNode, items, adventurerEntropy, false, adventurerLevel);
@@ -182,7 +184,7 @@ const recurseTree = (
       currentEncounter,
       adventurerEntropy,
       items,
-      hasBeast
+      currentlyFighting
     );
     tree.explore = obstacleNode;
     recurseTree(obstacleNode, items, adventurerEntropy, false, adventurerLevel);
@@ -192,7 +194,7 @@ const recurseTree = (
       currentEncounter,
       adventurerEntropy,
       items,
-      hasBeast
+      currentlyFighting
     );
     tree.explore = discoveryNode;
     recurseTree(
@@ -209,7 +211,7 @@ export const getDecisionTree = (
   adventurer: Adventurer,
   items: Item[],
   adventurerEntropy: bigint,
-  hasBeast: boolean,
+  currentlyFighting: boolean,
   adventurerLevel: number
 ) => {
   let xp = adventurer.xp!;
@@ -220,7 +222,7 @@ export const getDecisionTree = (
     xp,
     adventurerEntropy,
     items,
-    hasBeast
+    currentlyFighting
   );
   let tree: TreeNode = {
     flee: undefined,
@@ -229,7 +231,13 @@ export const getDecisionTree = (
     state: adventurer,
     encounter: currentEncounter,
   };
-  recurseTree(tree, items, adventurerEntropy, hasBeast, adventurerLevel);
+  recurseTree(
+    tree,
+    items,
+    adventurerEntropy,
+    currentlyFighting,
+    adventurerLevel
+  );
   return tree;
 };
 
@@ -276,6 +284,8 @@ export const processBeastEncounterCombat = (
   ) {
     battleState.health = battleState.health! - currentEncounter.damage!;
   }
+
+  currentAdventurer.beastHealth = currentEncounter.health;
   const beast = {
     ...currentEncounter,
     armor:
