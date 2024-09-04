@@ -366,7 +366,7 @@ export default function Header({
             } else {
               handleOffboarded();
               setLoginScreen(true);
-              setNetwork("sepolia");
+              setNetwork("mainnet");
             }
           }}
           disabled
