@@ -132,6 +132,20 @@ const MarketplaceRow = ({
     }
   };
 
+  const handleEquipPurchase = () => {
+    const itemKey = getKeyFromValue(gameData.ITEMS, item?.item ?? "") ?? "0";
+
+    const newPurchases = purchaseItems.map((purchaseItem) => {
+      if (purchaseItem.item === itemKey) {
+        return { ...purchaseItem, equip: "1" };
+      }
+      return purchaseItem;
+    });
+
+    setPurchaseItems(newPurchases);
+    upgradeHandler(undefined, undefined, newPurchases);
+  };
+
   const purchaseNoEquipItems = purchaseItems.filter(
     (item) => item.equip === "0"
   ).length;
@@ -150,6 +164,17 @@ const MarketplaceRow = ({
       };
     }
   }, [isActive, handleKeyDown]);
+
+  const showEquip =
+    (singlePurchaseExists(item.item ?? "") ||
+      checkPurchased(item.item ?? "")) &&
+    !emptySlot &&
+    !(slot === "Weapon") &&
+    !purchaseItems.some(
+      (pi) =>
+        pi.item === getKeyFromValue(gameData.ITEMS, item?.item ?? "") &&
+        pi.equip === "1"
+    );
 
   return (
     <tr
@@ -183,38 +208,51 @@ const MarketplaceRow = ({
       </td>
 
       <td className="w-20 sm:w-32 text-center">
-        <Button
-          onClick={() => handlePurchase()}
-          className={`h-10 w-16 sm:h-auto sm:w-auto ${
-            (singlePurchaseExists(item.item ?? "") ||
-              checkPurchased(item.item ?? "")) &&
-            "bg-terminal-yellow"
-          }`}
-          disabled={
-            (itemPrice > (adventurer?.gold ?? 0) ||
-              !enoughGold ||
-              item.owner ||
-              checkOwned(item.item ?? "") ||
-              (equipFull && bagFull) ||
-              (bagFull && !emptySlot)) &&
-            !(
-              singlePurchaseExists(item.item ?? "") ||
-              checkPurchased(item.item ?? "")
-            )
-          }
-          variant="secondary"
-        >
-          {singlePurchaseExists(item.item ?? "") ||
-          checkPurchased(item.item ?? "")
-            ? "Undo"
-            : !enoughGold || itemPrice > (adventurer?.gold ?? 0)
-            ? "Not Enough Gold"
-            : checkOwned(item.item ?? "")
-            ? "Owned"
-            : (equipFull && bagFull) || (bagFull && !emptySlot)
-            ? "Inventory Full"
-            : "Purchase"}
-        </Button>
+        <div className="flex flex-col sm:flex-row items-center justify-center h-full">
+          <Button
+            onClick={() => handlePurchase()}
+            className={`${
+              showEquip ? "h-5" : "h-10"
+            } sm:h-10 sm:w-16 sm:w-auto ${
+              (singlePurchaseExists(item.item ?? "") ||
+                checkPurchased(item.item ?? "")) &&
+              "bg-terminal-yellow"
+            }`}
+            disabled={
+              (itemPrice > (adventurer?.gold ?? 0) ||
+                !enoughGold ||
+                item.owner ||
+                checkOwned(item.item ?? "") ||
+                (equipFull && bagFull) ||
+                (bagFull && !emptySlot)) &&
+              !(
+                singlePurchaseExists(item.item ?? "") ||
+                checkPurchased(item.item ?? "")
+              )
+            }
+            variant="secondary"
+          >
+            {singlePurchaseExists(item.item ?? "") ||
+            checkPurchased(item.item ?? "")
+              ? "Undo"
+              : !enoughGold || itemPrice > (adventurer?.gold ?? 0)
+              ? "Not Enough Gold"
+              : checkOwned(item.item ?? "")
+              ? "Owned"
+              : (equipFull && bagFull) || (bagFull && !emptySlot)
+              ? "Inventory Full"
+              : "Purchase"}
+          </Button>
+          {showEquip && (
+            <Button
+              onClick={() => handleEquipPurchase()}
+              className="sm:h-10 sm:w-16 h-auto sm:w-auto text-terminal-green"
+              variant="token"
+            >
+              Equip
+            </Button>
+          )}
+        </div>
       </td>
     </tr>
   );

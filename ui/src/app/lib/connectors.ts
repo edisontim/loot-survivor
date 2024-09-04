@@ -52,7 +52,8 @@ export const providerInterfaceCamel = (provider: string) => {
 export const cartridgeConnector = (
   gameAddress: string,
   lordsAddress: string,
-  ethAddress: string
+  ethAddress: string,
+  rpcUrl: string
 ) =>
   new CartridgeConnector({
     policies: [
@@ -104,5 +105,6 @@ export const cartridgeConnector = (
     paymaster: {
       caller: shortString.encodeShortString("ANY_CALLER"),
     },
+    rpc: rpcUrl,
     theme: "loot-survivor",
   }) as never as Connector;

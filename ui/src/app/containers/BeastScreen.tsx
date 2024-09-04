@@ -180,9 +180,9 @@ export default function BeastScreen({
       setGoldReward(
         getGoldReward(
           items,
-          beastDetails,
-          adventurer.xp!,
-          BigInt(adventurerEntropy)
+          beastDetails.tier,
+          beastDetails.level ?? 0,
+          adventurer.xp!
         )
       );
     }

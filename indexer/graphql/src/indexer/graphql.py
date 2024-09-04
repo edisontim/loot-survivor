@@ -53,6 +53,14 @@ def serialize_felt(value):
     return value
 
 
+def parse_token_id(value):
+    return value
+
+
+def serialize_token_id(value):
+    return value
+
+
 def parse_string(value):
     # Assuming the input is a regular string
     # Convert it to bytes and then to a hexadecimal string
@@ -214,6 +222,12 @@ FeltValue = strawberry.scalar(
     NewType("FeltValue", str), parse_value=parse_felt, serialize=serialize_felt
 )
 
+TokenIdValue = strawberry.scalar(
+    NewType("TokenIdValue", str),
+    parse_value=parse_token_id,
+    serialize=serialize_token_id,
+)
+
 StringValue = strawberry.scalar(
     NewType("StringValue", str), parse_value=parse_string, serialize=serialize_string
 )
@@ -369,7 +383,8 @@ class StringFilter:
             "startsWith": self.startsWith,
             "endsWith": self.endsWith,
         }
-    
+
+
 @strawberry.input
 class HashFilter:
     eq: Optional[str] = None
@@ -415,6 +430,28 @@ class FeltValueFilter:
     lte: Optional[FeltValue] = None
     gt: Optional[FeltValue] = None
     gte: Optional[FeltValue] = None
+
+    def to_dict(self):
+        return {
+            "eq": self.eq,
+            "_in": self._in,
+            "notIn": self.notIn,
+            "lt": self.lt,
+            "lte": self.lte,
+            "gt": self.gt,
+            "gte": self.gte,
+        }
+
+
+@strawberry.input
+class TokenIdValueFilter:
+    eq: Optional[TokenIdValue] = None
+    _in: Optional[List[TokenIdValue]] = None
+    notIn: Optional[List[TokenIdValue]] = None
+    lt: Optional[TokenIdValue] = None
+    lte: Optional[TokenIdValue] = None
+    gt: Optional[TokenIdValue] = None
+    gte: Optional[TokenIdValue] = None
 
     def to_dict(self):
         return {
@@ -1189,6 +1226,7 @@ class BeastsFilter:
     health: Optional[FeltValueFilter] = None
     level: Optional[FeltValueFilter] = None
     tier: Optional[FeltValueFilter] = None
+    power: Optional[FeltValueFilter] = None
     slainOnTime: Optional[DateTimeFilter] = None
     createdTime: Optional[DateTimeFilter] = None
     lastUpdatedTime: Optional[DateTimeFilter] = None
@@ -1205,6 +1243,7 @@ class BeastsFilter:
             "health": self.health.to_dict() if self.health else None,
             "level": self.level.to_dict() if self.level else None,
             "tier": self.tier.to_dict() if self.tier else None,
+            "power": self.power.to_dict() if self.power else None,
             "slainOnTime": self.slainOnTime.to_dict() if self.slainOnTime else None,
             "createdTime": self.createdTime.to_dict() if self.createdTime else None,
             "lastUpdatedTime": (
@@ -1348,7 +1387,8 @@ class TokensFilter:
             "timestamp": self.timestamp.to_dict() if self.timestamp else None,
             "hash": self.hash.to_dict() if self.hash else None,
         }
-    
+
+
 @strawberry.input
 class BeastTokensFilter:
     token: Optional[HexValueFilter] = None
@@ -1602,6 +1642,7 @@ class BeastsOrderByInput:
     health: Optional[OrderByInput] = None
     level: Optional[OrderByInput] = None
     tier: Optional[OrderByInput] = None
+    power: Optional[OrderByInput] = None
     slainOnTime: Optional[OrderByInput] = None
     createdTime: Optional[OrderByInput] = None
     lastUpdatedTime: Optional[OrderByInput] = None
@@ -1618,6 +1659,7 @@ class BeastsOrderByInput:
             "health": self.health.to_dict() if self.health else None,
             "level": self.level.to_dict() if self.level else None,
             "tier": self.tier.to_dict() if self.tier else None,
+            "power": self.power.to_dict() if self.power else None,
             "slainOnTime": self.slainOnTime.to_dict() if self.slainOnTime else None,
             "createdTime": self.createdTime.to_dict() if self.createdTime else None,
             "lastUpdatedTime": (
@@ -1763,7 +1805,8 @@ class TokensOrderByInput:
             "timestamp": self.timestamp.to_dict() if self.timestamp else None,
             "hash": self.hash.to_dict() if self.hash else None,
         }
-    
+
+
 @strawberry.input
 class BeastTokensOrderByInput:
     token: Optional[OrderByInput] = None
@@ -1802,7 +1845,7 @@ class ClaimedFreeGamesOrderByInput:
                 self.gameOwnerAddress.to_dict() if self.gameOwnerAddress else None
             ),
             "revealed": self.revealed.to_dict() if self.revealed else None,
-            "hash": self.hash.to_dict() if self.hash else None, 
+            "hash": self.hash.to_dict() if self.hash else None,
         }
 
 
@@ -1992,6 +2035,7 @@ class Beast:
     health: Optional[FeltValue] = None
     level: Optional[FeltValue] = None
     tier: Optional[FeltValue] = None
+    power: Optional[FeltValue] = None
     slainOnTime: Optional[str] = None
     createdTime: Optional[str] = None
     lastUpdatedTime: Optional[str] = None
@@ -2009,6 +2053,7 @@ class Beast:
             health=data["health"],
             level=data["level"],
             tier=data["tier"],
+            power=data["power"],
             slainOnTime=data["slainOnTime"],
             createdTime=data["createdTime"],
             lastUpdatedTime=data["lastUpdatedTime"],
@@ -2150,7 +2195,7 @@ class CollectionTotal:
 @strawberry.type
 class Token:
     token: Optional[HexValue]
-    tokenId: Optional[FeltValue]
+    tokenId: Optional[TokenIdValue]
     nftOwnerAddress: Optional[HexValue]
     timestamp: Optional[str]
     hash: Optional[str]
@@ -2162,9 +2207,10 @@ class Token:
             tokenId=data["tokenId"],
             nftOwnerAddress=data["nftOwnerAddress"],
             timestamp=data["timestamp"],
-            hash=data["hash"]
+            hash=data["hash"],
         )
-    
+
+
 @strawberry.type
 class BeastToken:
     token: Optional[HexValue]
@@ -2180,7 +2226,7 @@ class BeastToken:
             tokenId=data["tokenId"],
             ownerAddress=data["ownerAddress"],
             timestamp=data["timestamp"],
-            hash=data["hash"]
+            hash=data["hash"],
         )
 
 
@@ -2201,8 +2247,9 @@ class ClaimedFreeGame:
             adventurerId=data["adventurerId"],
             gameOwnerAddress=data["gameOwnerAddress"],
             revealed=data["revealed"],
-            hash=data["hash"]
+            hash=data["hash"],
         )
+
 
 @strawberry.type
 class TokenWithFreeGameStatus:
@@ -2289,6 +2336,7 @@ def get_felt_filters(where: FeltValueFilter) -> List[Dict]:
         filter["$gte"] = where.gte
 
     return filter
+
 
 def get_hash_filters(where: HashFilter) -> Dict:
     filter = {}
@@ -2789,7 +2837,7 @@ async def get_collection_totals(
         cached_result = cached_result.decode("utf-8")  # Decode the byte string
         return [CollectionTotal.from_mongo(item) for item in json.loads(cached_result)]
 
-    filter = {"cursor.to": None}
+    filter = {"_cursor.to": None}
 
     if where:
         processed_filters = process_filters(where)
@@ -2814,7 +2862,15 @@ async def get_collection_totals(
             sort_dir = -1
             break
 
-    query = db["collection_totals"].find[filter].skip(skip).limit(limit).sort(sort_var, sort_dir)
+    logger.info(f"filter: {filter}")
+
+    query = (
+        db["collection_totals"]
+        .find(filter)
+        .skip(skip)
+        .limit(limit)
+        .sort(sort_var, sort_dir)
+    )
 
     result = [CollectionTotal.from_mongo(t) for t in query]
 
@@ -2822,6 +2878,7 @@ async def get_collection_totals(
     await redis.set(cache_key, json.dumps([item.__dict__ for item in result]), ex=60)
 
     return result
+
 
 async def get_tokens(
     info,
@@ -2860,6 +2917,8 @@ async def get_tokens(
                 filter[key] = get_date_filters(value)
             elif isinstance(value, FeltValueFilter):
                 filter[key] = get_felt_filters(value)
+            elif isinstance(value, TokenIdValueFilter):
+                filter[key] = get_felt_filters(value)
             elif isinstance(value, BooleanFilter):
                 filter[key] = get_bool_filters(value)
             elif isinstance(value, HashFilter):
@@ -2889,6 +2948,7 @@ async def get_tokens(
 
     return result
 
+
 async def get_beast_tokens(
     info,
     where: Optional[BeastTokensFilter] = {},
@@ -2904,9 +2964,7 @@ async def get_beast_tokens(
     orderBy_dict = orderBy.to_dict() if orderBy else {}
 
     # Create a unique cache key based on the query parameters
-    cache_key = (
-        f"beast_tokens:{json.dumps(where_dict)}:{limit}:{skip}:{json.dumps(orderBy_dict)}"
-    )
+    cache_key = f"beast_tokens:{json.dumps(where_dict)}:{limit}:{skip}:{json.dumps(orderBy_dict)}"
     cached_result = await redis.get(cache_key)
 
     if cached_result:
@@ -2946,7 +3004,9 @@ async def get_beast_tokens(
             sort_dir = -1
             break
 
-    query = db["beast_tokens"].find(filter).skip(skip).limit(limit).sort(sort_var, sort_dir)
+    query = (
+        db["beast_tokens"].find(filter).skip(skip).limit(limit).sort(sort_var, sort_dir)
+    )
 
     result = [BeastToken.from_mongo(t) for t in query]
 
@@ -2971,9 +3031,7 @@ async def get_free_games(
     orderBy_dict = orderBy.to_dict() if orderBy else {}
 
     # Create a unique cache key based on the query parameters
-    cache_key = (
-        f"claimed_free_games:{json.dumps(where_dict)}:{limit}:{skip}:{json.dumps(orderBy_dict)}"
-    )
+    cache_key = f"claimed_free_games:{json.dumps(where_dict)}:{limit}:{skip}:{json.dumps(orderBy_dict)}"
     cached_result = await redis.get(cache_key)
 
     if cached_result:
@@ -3014,7 +3072,11 @@ async def get_free_games(
             break
 
     query = (
-        db["claimed_free_games"].find(filter).skip(skip).limit(limit).sort(sort_var, sort_dir)
+        db["claimed_free_games"]
+        .find(filter)
+        .skip(skip)
+        .limit(limit)
+        .sort(sort_var, sort_dir)
     )
 
     result = [ClaimedFreeGame.from_mongo(t) for t in query]
@@ -3023,6 +3085,42 @@ async def get_free_games(
     await redis.set(cache_key, json.dumps([item.__dict__ for item in result]), ex=60)
 
     return result
+
+
+@strawberry.type
+class TokenCount:
+    token: HexValue
+    count: int
+
+
+async def count_claimed_free_games(
+    info, tokens: Optional[List[HexValue]] = None
+) -> List[TokenCount]:
+    redis = info.context["redis"]
+    db = info.context["db"]
+
+    results = []
+
+    # Add adventurerId to the filter if provided
+    for token in tokens:
+        filter = {"_cursor.to": None, "token": {"$eq": token}}
+        cache_key = f"count_claimed_games:{json.dumps(filter)}"
+
+        # Check if the result is in the cache
+        cached_count = await redis.get(cache_key)
+        if cached_count is not None:
+            count = int(cached_count)
+        else:
+            # If not in cache, query the database
+            count = db["claimed_free_games"].count_documents(filter)
+            # Store the result in the cache
+            await redis.set(
+                cache_key, count, ex=60
+            )  # Set an expiration time of 60 seconds
+
+        results.append(TokenCount(token=token, count=count))
+
+    return results
 
 
 # async def get_tokens_with_free_game_status(
@@ -3044,7 +3142,7 @@ async def get_free_games(
 #             TokenWithFreeGameStatus(**item)
 #             for item in json.loads(cached_result.decode("utf-8"))
 #         ]
-    
+
 #     # Separate filters for tokens and claimed_free_games
 #     token_filter = {"_cursor.to": None}
 #     free_game_filter = {"_cursor.to": None}
@@ -3385,6 +3483,9 @@ class Query:
     tokens: List[Token] = strawberry.field(resolver=get_tokens)
     beastTokens: List[BeastToken] = strawberry.field(resolver=get_beast_tokens)
     claimedFreeGames: List[ClaimedFreeGame] = strawberry.field(resolver=get_free_games)
+    countClaimedFreeGames: List[TokenCount] = strawberry.field(
+        resolver=count_claimed_free_games
+    )
     # tokensWithFreeGameStatus: List[TokenWithFreeGameStatus] = strawberry.field(
     #     resolver=get_tokens_with_free_game_status
     # )

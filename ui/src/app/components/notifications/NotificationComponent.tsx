@@ -106,7 +106,7 @@ const NotificationComponent = ({
       unmountOnExit
     >
       <div
-        className={`fixed top-0 sm:top-1/16 left-[5%] w-[90%] sm:left-3/8 sm:w-1/4 border-4 z-50 shadow-xl bg-terminal-black h-1/6 ${
+        className={`fixed bottom-14 left-[5%] w-[90%] sm:left-14 sm:w-1/4 border-4 z-50 shadow-xl bg-terminal-black h-1/6 ${
           error ? "border-red-600" : "border-terminal-green"
         }`}
       >

@@ -4,6 +4,7 @@ mod game {
     mod renderer;
     mod encoding;
     mod RenderContract;
+    mod snip12_controller_claim;
 }
 mod tests {
     mod test_game;
@@ -67,6 +68,8 @@ mod Game {
     };
     use openzeppelin::token::erc721::{ERC721Component, ERC721HooksEmptyImpl};
     use openzeppelin::introspection::src5::SRC5Component;
+    use openzeppelin::introspection::interface::{ISRC5Dispatcher, ISRC5DispatcherTrait};
+    use openzeppelin::account::dual_account::{DualCaseAccount, DualCaseAccountABI};
 
     component!(path: ERC721Component, storage: erc721, event: ERC721Event);
     component!(path: SRC5Component, storage: src5, event: SRC5Event);
@@ -80,14 +83,19 @@ mod Game {
     use super::{FreeGameTokenType, ImplFreeGameTokenType, LaunchTournamentCollections};
     use super::game::{
         interfaces::{
-            IGame, IERC721Mixin, ILeetLoot, ILeetLootDispatcher, ILeetLootDispatcherTrait,
+            IGame, IERC721Mixin, IBeasts, IBeastsDispatcher, IBeastsDispatcherTrait,
+            IDelegateAccountDispatcher, IDelegateAccountDispatcherTrait
         },
+        snip12_controller_claim::{Message, OffchainMessageHashImpl, SNIP12Metadata},
         constants::{
             messages, Rewards, REWARD_DISTRIBUTIONS_BP, COST_TO_PLAY, STARTER_BEAST_ATTACK_DAMAGE,
             MINIMUM_DAMAGE_FROM_BEASTS, MAINNET_CHAIN_ID, SEPOLIA_CHAIN_ID, KATANA_CHAIN_ID,
-            MINIMUM_SCORE_FOR_PAYOUTS, SECONDS_IN_DAY, TARGET_PRICE_USD_CENTS, VRF_COST_PER_GAME,
-            VRF_MAX_CALLBACK_MAINNET, VRF_MAX_CALLBACK_TESTNET, PRAGMA_LORDS_KEY,
-            PRAGMA_PUBLISH_DELAY, PRAGMA_NUM_WORDS, GAME_EXPIRY_DAYS, OBITUARY_EXPIRY_DAYS, MAX_U64
+            MINIMUM_SCORE_FOR_PAYOUTS, MINIMUM_SCORE_FOR_DEATH_RANK, SECONDS_IN_DAY,
+            TARGET_PRICE_USD_CENTS, VRF_COST_PER_GAME, VRF_MAX_CALLBACK_MAINNET,
+            VRF_MAX_CALLBACK_TESTNET, PRAGMA_LORDS_KEY, PRAGMA_PUBLISH_DELAY, PRAGMA_NUM_WORDS,
+            GAME_EXPIRY_DAYS, OBITUARY_EXPIRY_DAYS, MAX_U64,
+            CONTROLLER_DELEGATE_ACCOUNT_INTERFACE_ID, DAO_CONTRACT_REWARD_ADVENTURER,
+            PG_CONTRACT_REWARD_ADVENTURER
         },
         RenderContract::{
             IRenderContract, IRenderContractDispatcher, IRenderContractDispatcherTrait
@@ -142,12 +150,13 @@ mod Game {
         _adventurer_renderer: Map::<felt252, ContractAddress>,
         _adventurer_vrf_allowance: Map::<felt252, u128>,
         _bag: Map::<felt252, Bag>,
-        _beasts_dispatcher: ILeetLootDispatcher,
+        _beasts_dispatcher: IBeastsDispatcher,
         _cost_to_play: u128,
-        _dao: ContractAddress,
         _default_renderer: ContractAddress,
         _eth_dispatcher: IERC20Dispatcher,
+        _free_vrf_promotion_duration_seconds: u64,
         _game_count: felt252,
+        _genesis_timestamp: u64,
         _golden_token_dispatcher: IERC721Dispatcher,
         _golden_token_last_use: Map::<u32, u64>,
         _launch_tournament_champions_dispatcher: IERC721Dispatcher,
@@ -155,14 +164,14 @@ mod Game {
         _launch_tournament_collections: Vec<ContractAddress>,
         _launch_tournament_games_per_claim: Map::<ContractAddress, u8>,
         _launch_tournament_games_per_collection: u16,
-        _launch_tournament_end_time: u64,
+        _launch_tournament_duration_seconds: u64,
         _launch_tournament_participants: Map::<felt252, ContractAddress>,
         _launch_tournament_scores: Map::<ContractAddress, u32>,
+        _launch_tournament_start_delay_seconds: u64,
         _launch_tournament_game_counts: Map::<ContractAddress, u16>,
         _leaderboard: Leaderboard,
         _payment_token_dispatcher: IERC20Dispatcher,
         _oracle_dispatcher: IPragmaABIDispatcher,
-        _pg_address: ContractAddress,
         _previous_free_game_timestamp: Map::<(ContractAddress, u32), u64>,
         _terminal_timestamp: u64,
         _vrf_dispatcher: IRandomnessDispatcher,
@@ -232,10 +241,13 @@ mod Game {
     /// @param oracle_address: the address of the oracle
     /// @param render_contract: the address of the render contract
     /// @param qualifying_collections: the qualifying collections for the launch tournament
-    /// @param launch_tournament_end_timestamp: the timestamp of the launch tournament end
+    /// @param launch_tournament_duration_seconds: the duration of the launch tournament in seconds
     /// @param vrf_payments_address: the address of the VRF payments
     /// @param launch_tournament_games_per_collection: the number of games per collection for the
     /// launch tournament
+    /// @param launch_tournament_start_delay_seconds: the delay before the launch tournament claims
+    /// starts
+    /// @param free_vrf_promotion_duration_seconds: the duration of the free VRF promotion
     #[constructor]
     fn constructor(
         ref self: ContractState,
@@ -250,9 +262,11 @@ mod Game {
         oracle_address: ContractAddress,
         render_contract: ContractAddress,
         qualifying_collections: Array<LaunchTournamentCollections>,
-        launch_tournament_end_timestamp: u64,
+        launch_tournament_duration_seconds: u64,
         vrf_payments_address: ContractAddress,
-        launch_tournament_games_per_collection: u16
+        launch_tournament_games_per_collection: u16,
+        launch_tournament_start_delay_seconds: u64,
+        free_vrf_promotion_duration_seconds: u64
     ) {
         if payment_token.is_non_zero() {
             let payment_dispatcher = IERC20Dispatcher { contract_address: payment_token };
@@ -271,16 +285,8 @@ mod Game {
             // @dev the only reason ETH should be in the contract is to cover VRF costs
         }
 
-        if dao_address.is_non_zero() {
-            self._dao.write(dao_address);
-        }
-
-        if pg_address.is_non_zero() {
-            self._pg_address.write(pg_address);
-        }
-
         if beasts_address.is_non_zero() {
-            let beasts_dispatcher = ILeetLootDispatcher { contract_address: beasts_address };
+            let beasts_dispatcher = IBeastsDispatcher { contract_address: beasts_address };
             self._beasts_dispatcher.write(beasts_dispatcher);
         }
 
@@ -302,8 +308,16 @@ mod Game {
             self._default_renderer.write(render_contract);
         }
 
-        if launch_tournament_end_timestamp != 0 {
-            self._launch_tournament_end_time.write(launch_tournament_end_timestamp);
+        self._genesis_timestamp.write(get_block_timestamp());
+
+        if launch_tournament_duration_seconds != 0 {
+            self._launch_tournament_duration_seconds.write(launch_tournament_duration_seconds);
+        }
+
+        if launch_tournament_start_delay_seconds != 0 {
+            self
+                ._launch_tournament_start_delay_seconds
+                .write(launch_tournament_start_delay_seconds);
         }
 
         if launch_tournament_games_per_collection != 0 {
@@ -327,11 +341,18 @@ mod Game {
             self._vrf_premiums_address.write(vrf_payments_address);
         }
 
+        if free_vrf_promotion_duration_seconds != 0 {
+            self._free_vrf_promotion_duration_seconds.write(free_vrf_promotion_duration_seconds);
+        }
+
         // @dev base uri isn't used in the current implementation
         self.erc721.initializer("Loot Survivor", "LSVR", "https://token.lootsurvivor.io/");
 
         // initialize launch tournament
         _initialize_launch_tournament(ref self, qualifying_collections.span());
+
+        // mint genesis adventurers
+        _mint_genesis_adventurers(ref self, dao_address, pg_address);
     }
 
     // ------------------------------------------ //
@@ -388,11 +409,7 @@ mod Game {
                     _process_payment_and_distribute_rewards(ref self, client_reward_address);
                 }
 
-                // get current timestamp
-                let current_timestamp = starknet::get_block_info().unbox().block_timestamp;
-                // check if timestamp is within launch promotion period
-                if current_timestamp > self._launch_tournament_end_time.read() {
-                    // pay for vrf
+                if !_free_vrf_promotion_active(@self) {
                     _pay_for_vrf(@self);
                 }
             }
@@ -965,6 +982,69 @@ mod Game {
             }
         }
 
+
+        /// @title Enter Launch Tournament with Signature
+        /// @notice Allows an adventurer to enter the launch tournament using qualifying NFTs from a
+        /// separate account after verifying the signature.
+        /// @param weapon A u8 representing the weapon to start the game with.
+        /// @param name A felt252 representing the name of the adventurer.
+        /// @param custom_renderer A ContractAddress representing the custom renderer to use for the
+        /// adventurer.
+        /// @param delay_stat_reveal A bool representing whether to delay the stat reveal.
+        /// @param collection_address A ContractAddress representing the address of the NFT
+        /// collection.
+        /// @param token_id a u32 representing the token ID of the NFT.
+        /// @param mint_from A ContractAddress representing the address that will be used for
+        /// qualifying collections @param mint_to A ContractAddress representing the address to mint
+        /// the games to.
+        /// @param signature An Array of felt252 representing the signature of the NFT owner.
+        /// @return An Array of felt252 representing the adventurer IDs of the adventurers that were
+        /// minted
+        fn enter_launch_tournament_with_signature(
+            ref self: ContractState,
+            weapon: u8,
+            name: felt252,
+            custom_renderer: ContractAddress,
+            delay_stat_reveal: bool,
+            collection_address: ContractAddress,
+            token_id: u32,
+            mint_from: ContractAddress,
+            mint_to: ContractAddress,
+            signature: Array<felt252>
+        ) -> Array<felt252> {
+            // generate message hash
+            let message = Message { recipient: mint_to };
+
+            // generate signed message using mint_from address
+            let hash = message.get_message_hash(mint_from);
+
+            // verify signature
+            let is_valid_signature_felt = DualCaseAccount { contract_address: mint_from }
+                .is_valid_signature(hash, signature);
+
+            // Check either 'VALID' or True for backwards compatibility
+            let is_valid_signature = is_valid_signature_felt == starknet::VALIDATED
+                || is_valid_signature_felt == 1;
+            assert(is_valid_signature, 'Invalid signature');
+
+            // assert caller is the same as mint_to address
+            assert(get_caller_address() == mint_to, 'Caller != mint_to');
+
+            // Call internal function with mint_from as the mint_from which we have verified the
+            // caller has access to
+            _enter_launch_tournament(
+                ref self,
+                weapon,
+                name,
+                custom_renderer,
+                delay_stat_reveal,
+                collection_address,
+                token_id,
+                mint_to,
+                mint_from
+            )
+        }
+
         /// @title Enter Genesis Tournament
         /// @notice Allows an adventurer to enter the launch tournament.
         /// @param weapon A u8 representing the weapon to start the game with.
@@ -987,85 +1067,17 @@ mod Game {
             token_id: u32,
             mint_to: ContractAddress
         ) -> Array<felt252> {
-            // assert game terminal time has not been reached
-            _assert_launch_tournament_is_active(@self);
-
-            // assert the nft collection is part of the set of free game nft collections
-            _assert_is_qualifying_nft(@self, collection_address);
-
-            // assert caller owns nft
-            _assert_nft_ownership(@self, collection_address, token_id);
-
-            // get hash of collection and token id
-            let token_hash = _get_token_hash(@self, collection_address, token_id);
-
-            // assert token has not already claimed free game
-            _assert_token_not_claimed(@self, token_hash);
-
-            // assert the total number of games for this collection is below the tournament limit
-            let games_claimed_for_collection = self
-                ._launch_tournament_game_counts
-                .read(collection_address);
-
-            let max_games_per_collection = self._launch_tournament_games_per_collection.read();
-
-            assert(
-                games_claimed_for_collection < max_games_per_collection,
-                messages::COLLECTION_OUT_OF_GAMES
-            );
-
-            // get the number of games allowed per collection
-            let max_claimable_games = self
-                ._launch_tournament_games_per_claim
-                .read(collection_address);
-
-            // adjust for the case where the collection doesn't have enough games remaining to claim
-            // the full amount of games they are allowed
-            let claimable_games = if games_claimed_for_collection
-                + max_claimable_games.into() > max_games_per_collection {
-                // if there aren't enough games remaining to claim the max, claim the remaining
-                max_games_per_collection - games_claimed_for_collection.into()
-            } else {
-                // if there are enough games remaining, claim max
-                max_claimable_games.into()
-            };
-
-            // increment game count for this collection
-            self
-                ._launch_tournament_game_counts
-                .write(collection_address, games_claimed_for_collection + claimable_games);
-
-            // set token as claimed
-            self._launch_tournament_claimed_games.write(token_hash, true);
-
-            // iterate over the number of claimable games
-            let mut adventurer_ids: Array<felt252> = ArrayTrait::<felt252>::new();
-            let mut claim_count = 0;
-            loop {
-                if claim_count == claimable_games {
-                    break;
-                }
-
-                // mint/start the game
-                let adventurer_id = _start_game(
-                    ref self, weapon, name, custom_renderer, delay_stat_reveal, 0, 0, mint_to
-                );
-
-                // record the collection the adventurer is playing for
-                self._launch_tournament_participants.write(adventurer_id, collection_address);
-
-                // emit claimed free game event
-                __event_ClaimedFreeGame(ref self, adventurer_id, collection_address, token_id);
-
-                // add adventurer id to array of new game ids
-                adventurer_ids.append(adventurer_id);
-
-                // increment game index
-                claim_count += 1;
-            };
-
-            // return the array of new game ids
-            adventurer_ids
+            _enter_launch_tournament(
+                ref self,
+                weapon,
+                name,
+                custom_renderer,
+                delay_stat_reveal,
+                collection_address,
+                token_id,
+                mint_to,
+                get_caller_address(),
+            )
         }
 
         fn receive_random_words(
@@ -1258,11 +1270,156 @@ mod Game {
         ) -> bool {
             _free_game_available(self, token_type, token_id)
         }
+        fn free_vrf_promotion_active(self: @ContractState) -> bool {
+            _free_vrf_promotion_active(self)
+        }
+        fn is_launch_tournament_active(self: @ContractState) -> bool {
+            _is_launch_tournament_active(self)
+        }
+        fn get_launch_tournament_winner(self: @ContractState) -> ContractAddress {
+            _get_launch_tournament_winner(self)
+        }
+        fn get_launch_tournament_end_time(self: @ContractState) -> u64 {
+            _launch_tournament_end_time(self)
+        }
     }
 
     // ------------------------------------------ //
     // ------------ Internal Functions ---------- //
     // ------------------------------------------ //
+
+    fn _mint_genesis_adventurers(
+        ref self: ContractState, dao_address: ContractAddress, pg_address: ContractAddress
+    ) {
+        _start_game(
+            ref self,
+            ItemId::Wand,
+            'Genesis Adventurer',
+            contract_address_const::<0>(),
+            true,
+            0,
+            0,
+            pg_address
+        );
+
+        _start_game(
+            ref self,
+            ItemId::Book,
+            'Bibliomancer',
+            contract_address_const::<0>(),
+            true,
+            0,
+            0,
+            dao_address
+        );
+
+        _start_game(
+            ref self,
+            ItemId::ShortSword,
+            'GLHF',
+            contract_address_const::<0>(),
+            true,
+            0,
+            0,
+            pg_address
+        );
+    }
+    fn _free_vrf_promotion_active(self: @ContractState) -> bool {
+        let current_timestamp = starknet::get_block_info().unbox().block_timestamp;
+        let genesis_timestamp = self._genesis_timestamp.read();
+        let free_vrf_promotion_duration_seconds = self._free_vrf_promotion_duration_seconds.read();
+        current_timestamp <= genesis_timestamp + free_vrf_promotion_duration_seconds
+    }
+
+    fn _enter_launch_tournament(
+        ref self: ContractState,
+        weapon: u8,
+        name: felt252,
+        custom_renderer: ContractAddress,
+        delay_stat_reveal: bool,
+        collection_address: ContractAddress,
+        token_id: u32,
+        mint_to: ContractAddress,
+        owner: ContractAddress
+    ) -> Array<felt252> {
+        // assert game terminal time has not been reached
+        _assert_launch_tournament_is_active(@self);
+
+        // assert the nft collection is part of the set of free game nft collections
+        _assert_is_qualifying_nft(@self, collection_address);
+
+        // assert caller owns nft
+        _assert_nft_ownership(@self, collection_address, token_id, owner);
+
+        // get hash of collection and token id
+        let token_hash = _get_token_hash(@self, collection_address, token_id);
+
+        // assert token has not already claimed free game
+        _assert_token_not_claimed(@self, token_hash);
+
+        // assert the total number of games for this collection is below the tournament limit
+        let games_claimed_for_collection = self
+            ._launch_tournament_game_counts
+            .read(collection_address);
+
+        let max_games_per_collection = self._launch_tournament_games_per_collection.read();
+
+        assert(
+            games_claimed_for_collection < max_games_per_collection,
+            messages::COLLECTION_OUT_OF_GAMES
+        );
+
+        // get the number of games allowed per collection
+        let max_claimable_games = self._launch_tournament_games_per_claim.read(collection_address);
+
+        // adjust for the case where the collection doesn't have enough games remaining to claim
+        // the full amount of games they are allowed
+        let claimable_games = if games_claimed_for_collection
+            + max_claimable_games.into() > max_games_per_collection {
+            // if there aren't enough games remaining to claim the max, claim the remaining
+            max_games_per_collection - games_claimed_for_collection.into()
+        } else {
+            // if there are enough games remaining, claim max
+            max_claimable_games.into()
+        };
+
+        // increment game count for this collection
+        self
+            ._launch_tournament_game_counts
+            .write(collection_address, games_claimed_for_collection + claimable_games);
+
+        // set token as claimed
+        self._launch_tournament_claimed_games.write(token_hash, true);
+
+        // iterate over the number of claimable games
+        let mut adventurer_ids: Array<felt252> = ArrayTrait::<felt252>::new();
+        let mut claim_count = 0;
+        loop {
+            if claim_count == claimable_games {
+                break;
+            }
+
+            // mint/start the game
+            let adventurer_id = _start_game(
+                ref self, weapon, name, custom_renderer, delay_stat_reveal, 0, 0, mint_to
+            );
+
+            // record the collection the adventurer is playing for
+            self._launch_tournament_participants.write(adventurer_id, collection_address);
+
+            // emit claimed free game event
+            __event_ClaimedFreeGame(ref self, adventurer_id, collection_address, token_id);
+
+            // add adventurer id to array of new game ids
+            adventurer_ids.append(adventurer_id);
+
+            // increment game index
+            claim_count += 1;
+        };
+
+        // return the array of new game ids
+        adventurer_ids
+    }
 
     /// @title Get Adventurer Renderer
     /// @notice Retrieves the renderer for an adventurer.
@@ -1540,8 +1697,9 @@ mod Game {
         // if beast beast level is above collectible threshold
         if beast.combat_spec.level >= BEAST_SPECIAL_NAME_LEVEL_UNLOCK.into()
             && _network_supports_vrf() {
-            // mint beast to owner of the adventurer
-            _mint_beast(@self, beast, _get_owner(@self, adventurer_id));
+            // mint beast to owner of the adventurer or controller delegate if set
+            let mint_to_address = _get_delegate_or_owner(@self, adventurer_id);
+            _mint_beast(@self, beast, mint_to_address);
         }
     }
 
@@ -1728,6 +1886,14 @@ mod Game {
             / (response.price * 100000000)
     }
 
+    fn _get_dao_address(self: @ContractState) -> ContractAddress {
+        _get_owner(self, DAO_CONTRACT_REWARD_ADVENTURER.into())
+    }
+
+    fn _get_pg_address(self: @ContractState) -> ContractAddress {
+        _get_owner(self, PG_CONTRACT_REWARD_ADVENTURER.into())
+    }
+
     /// @title Process Payment and Distribute Rewards
     /// @notice Processes the payment and distributes the rewards to the appropriate addresses.
     /// @dev This function is called when the payment is processed and the rewards are distributed.
@@ -1742,11 +1908,11 @@ mod Game {
 
         // if the third place score is less than the minimum score for payouts
         if leaderboard.third.xp < MINIMUM_SCORE_FOR_PAYOUTS {
-            // burn the payment
-            payment_dispatcher
-                .transfer_from(
-                    get_caller_address(), contract_address_const::<0>(), cost_to_play.into()
-                );
+            // send tokens to PG address
+            // @dev this is expected to be a trivial amount and exists to remove incentive to play
+            // and die fast
+            let pg_address = _get_pg_address(@self);
+            payment_dispatcher.transfer_from(get_caller_address(), pg_address, cost_to_play.into());
         } else {
             // if payouts are active, calculate rewards
             let rewards = _get_reward_distribution(@self);
@@ -1765,14 +1931,14 @@ mod Game {
             }
 
             if rewards.BIBLIO != 0 {
-                let dao_address = self._dao.read();
+                let dao_address = _get_dao_address(@self);
                 payment_dispatcher
                     .transfer_from(get_caller_address(), dao_address, rewards.BIBLIO.into());
             }
 
             // if pg is not zero, transfer rewards
             if rewards.PG != 0 {
-                let pg_address = self._pg_address.read();
+                let pg_address = _get_pg_address(@self);
                 payment_dispatcher
                     .transfer_from(get_caller_address(), pg_address, rewards.PG.into());
             }
@@ -3386,11 +3552,19 @@ mod Game {
     fn _assert_is_dead(self: Adventurer) {
         assert(self.health == 0, messages::ADVENTURER_IS_ALIVE);
     }
+
+    fn _is_genesis_adventurer(adventurer_id: felt252) -> bool {
+        adventurer_id == 1 || adventurer_id == 2 || adventurer_id == 3
+    }
     fn _is_expired(self: @ContractState, adventurer_id: felt252,) -> bool {
-        let current_time = get_block_timestamp();
-        let birth_date = _load_adventurer_metadata(self, adventurer_id).birth_date;
-        let expiry_time = birth_date + (GAME_EXPIRY_DAYS.into() * SECONDS_IN_DAY.into());
-        current_time > expiry_time
+        if _is_genesis_adventurer(adventurer_id) {
+            false
+        } else {
+            let current_time = get_block_timestamp();
+            let birth_date = _load_adventurer_metadata(self, adventurer_id).birth_date;
+            let expiry_time = birth_date + (GAME_EXPIRY_DAYS.into() * SECONDS_IN_DAY.into());
+            current_time > expiry_time
+        }
     }
     fn _assert_valid_starter_weapon(starting_weapon: u8) {
         assert(
@@ -3457,10 +3631,17 @@ mod Game {
         assert(!_is_launch_tournament_active(self), messages::TOURNAMENT_STILL_ACTIVE);
     }
 
+    fn _launch_tournament_end_time(self: @ContractState) -> u64 {
+        let genesis_timestamp = self._genesis_timestamp.read();
+        let start_delay = self._launch_tournament_start_delay_seconds.read();
+        let duration = self._launch_tournament_duration_seconds.read();
+        genesis_timestamp + duration + start_delay
+    }
+
     fn _is_launch_tournament_active(self: @ContractState) -> bool {
         let current_timestamp = starknet::get_block_info().unbox().block_timestamp;
-        let launch_promotion_end_timestamp = self._launch_tournament_end_time.read();
-        current_timestamp <= launch_promotion_end_timestamp
+        let launch_tournament_end_time = _launch_tournament_end_time(self);
+        current_timestamp <= launch_tournament_end_time
     }
 
     fn _initialize_launch_tournament(
@@ -3510,13 +3691,14 @@ mod Game {
     }
 
     fn _assert_nft_ownership(
-        self: @ContractState, nft_collection_address: ContractAddress, token_id: u32
+        self: @ContractState,
+        nft_collection_address: ContractAddress,
+        token_id: u32,
+        caller: ContractAddress
     ) {
         let erc721_dispatcher = IERC721Dispatcher { contract_address: nft_collection_address };
-        let owner = erc721_dispatcher.owner_of(token_id.into());
-
-        // TODO: add support for delegate address
-        assert(owner == get_caller_address(), messages::NOT_TOKEN_OWNER);
+        let token_owner = erc721_dispatcher.owner_of(token_id.into());
+        assert(caller == token_owner, messages::NOT_TOKEN_OWNER);
     }
 
     fn _get_token_hash(
@@ -3528,7 +3710,7 @@ mod Game {
         poseidon_hash_span(hash_span.span())
     }
 
-    fn _get_tournament_winner(self: @ContractState) -> ContractAddress {
+    fn _get_launch_tournament_winner(self: @ContractState) -> ContractAddress {
         self._launch_tournament_champions_dispatcher.read().contract_address
     }
 
@@ -3627,6 +3809,33 @@ mod Game {
         self.erc721.ERC721_owners.read(adventurer_id.into())
     }
 
+    /// @title Get Delegate or Owner
+    /// @notice Gets the delegate account address if the owner implements the controller delegate
+    /// account interface.
+    /// @dev This function is called when the delegate account address is needed.
+    /// @param self A reference to the ContractState object.
+    /// @param adventurer_id A felt252 representing the unique ID of the adventurer.
+    /// @return A ContractAddress representing the delegate account address or the owner address.
+    fn _get_delegate_or_owner(self: @ContractState, adventurer_id: felt252) -> ContractAddress {
+        // get the nft owner address
+        let owner_address = _get_owner(self, adventurer_id);
+
+        // check if the owner account implements the controller delegate account interface
+        let src5_dispatcher = ISRC5Dispatcher { contract_address: owner_address };
+        if src5_dispatcher.supports_interface(CONTROLLER_DELEGATE_ACCOUNT_INTERFACE_ID) {
+            // if it does, get the delegate account address
+            let controller_delegate = IDelegateAccountDispatcher { contract_address: owner_address }
+                .delegate_account();
+            if controller_delegate.is_non_zero() {
+                // and return it if it's non zero
+                return controller_delegate;
+            }
+        }
+
+        // otherwise return the owner address
+        return owner_address;
+    }
+
     fn _get_rank(self: @ContractState, adventurer_id: felt252) -> u8 {
         let leaderboard = self._leaderboard.read();
         if (leaderboard.first.adventurer_id == adventurer_id.try_into().unwrap()) {
@@ -3677,7 +3886,7 @@ mod Game {
         }
 
         // if player xp is higher than minimum score for payouts
-        if adventurer.xp >= MINIMUM_SCORE_FOR_PAYOUTS {
+        if adventurer.xp >= MINIMUM_SCORE_FOR_DEATH_RANK {
             // record rank at death for onchain fun
             _record_adventurer_rank_at_death(ref self, adventurer_id, player_rank);
         }
@@ -4457,7 +4666,6 @@ mod Game {
         ref self: ContractState, token_type: FreeGameTokenType, token_id: u32
     ) {
         // assert caller owns token
-        // TODO: support Delegate Address
         let token_dispatcher = _get_token_dispatcher(@self, token_type);
         let token_owner = token_dispatcher.owner_of(token_id.into());
         assert(token_owner == get_caller_address(), messages::NOT_OWNER_OF_TOKEN);

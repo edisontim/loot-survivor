@@ -228,10 +228,7 @@ export const ItemDisplay = ({
                         </div>
                       </>
                     )}
-                    {(screen == "play" ||
-                      screen == "upgrade" ||
-                      screen == "player" ||
-                      screen == "inventory") && (
+                    {screen == "inventory" && (
                       <Button
                         variant={"contrast"}
                         size={"xxs"}

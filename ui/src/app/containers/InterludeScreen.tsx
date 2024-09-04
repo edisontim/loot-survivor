@@ -105,9 +105,6 @@ export default function InterludeScreen({ type }: InterludeScreenProps) {
   ];
 
   useEffect(() => {
-    if (!adventurerLeveledUp && !fetchUnlocksEntropy) {
-      setLoading(false);
-    }
     const randomLoadingMessageIndex = Math.floor(
       Math.random() * loadingMessages.length
     );
@@ -115,6 +112,12 @@ export default function InterludeScreen({ type }: InterludeScreenProps) {
 
     const randomHintIndex = Math.floor(Math.random() * tutorials.length);
     setCurrentHintIndex(randomHintIndex);
+  }, []);
+
+  useEffect(() => {
+    if (!adventurerLeveledUp && !fetchUnlocksEntropy) {
+      setLoading(false);
+    }
   }, [adventurerLeveledUp, fetchUnlocksEntropy]);
 
   return (

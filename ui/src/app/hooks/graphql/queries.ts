@@ -131,6 +131,8 @@ const BEAST_FIELDS = `
   health
   lastUpdatedTime
   level
+  tier
+  power
   seed
   slainOnTime
   special1
@@ -291,9 +293,9 @@ const getKilledBeasts = gql`
   ${BEASTS_FRAGMENT}
   query get_killed_beasts {
     beasts(
-      where: { health: { eq: 0 }, tier: { eq: 1 } }
+      where: { health: { eq: 0 } }
       limit: 10
-      orderBy: { level: { desc: true } }
+      orderBy: { power: { desc: true } }
     ) {
       ...BeastFields
     }
@@ -456,6 +458,16 @@ const getAdventurerRank = gql`
   }
 `;
 
+const getCollectionsTotals = gql`
+  query getCollectionsTotals {
+    collectionTotals {
+      collection
+      gamesPlayed
+      xp
+    }
+  }
+`;
+
 export {
   getLatestDiscoveries,
   getLastBeastDiscovery,
@@ -477,4 +489,5 @@ export {
   getAliveAdventurersCount,
   getDiscoveryBattleCount,
   getAdventurerRank,
+  getCollectionsTotals,
 };

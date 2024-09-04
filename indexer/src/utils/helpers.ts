@@ -114,6 +114,7 @@ export function insertBeast({
         health: parseInt(health),
         level: checkExistsInt(parseInt(level)),
         tier: checkExistsInt(parseInt(tier)),
+        power: (6 - parseInt(tier)) * parseInt(level),
         special1: checkExistsInt(parseInt(special1)),
         special2: checkExistsInt(parseInt(special2)),
         special3: checkExistsInt(parseInt(special3)),
@@ -621,7 +622,7 @@ export function updateTotalPayout({ adventurerId, timestamp, newPayout }: any) {
 export function updateTokenOwner({ token, tokenId, timestamp, newOwner }: any) {
   const entity = {
     token: checkExistsInt(BigInt(token).toString(16)),
-    tokenId: parseInt(tokenId),
+    tokenId: tokenId.toString(),
   };
 
   return {

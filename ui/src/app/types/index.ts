@@ -529,3 +529,10 @@ export type Attribute = {
   stat: number;
   upgrades: number;
 };
+
+export type CollectionScore = {
+  name: string;
+  avatar: string;
+  totalXP: number;
+  gamesPlayed: number;
+};

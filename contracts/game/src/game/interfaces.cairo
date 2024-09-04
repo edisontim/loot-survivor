@@ -64,6 +64,18 @@ trait IGame<TContractState> {
         token_id: u32,
         mint_to: ContractAddress
     ) -> Array<felt252>;
+    fn enter_launch_tournament_with_signature(
+        ref self: TContractState,
+        weapon: u8,
+        name: felt252,
+        custom_renderer: ContractAddress,
+        delay_stat_reveal: bool,
+        collection_address: ContractAddress,
+        token_id: u32,
+        mint_from: ContractAddress,
+        mint_to: ContractAddress,
+        signature: Array<felt252>
+    ) -> Array<felt252>;
     fn settle_launch_tournament(ref self: TContractState);
     // ------ View Functions ------
 
@@ -127,6 +139,10 @@ trait IGame<TContractState> {
     fn get_adventurer_renderer(self: @TContractState, adventurer_id: felt252) -> ContractAddress;
     fn get_adventurer_vrf_allowance(self: @TContractState, adventurer_id: felt252) -> u128;
     fn get_vrf_premiums_address(self: @TContractState) -> ContractAddress;
+    fn free_vrf_promotion_active(self: @TContractState) -> bool;
+    fn is_launch_tournament_active(self: @TContractState) -> bool;
+    fn get_launch_tournament_winner(self: @TContractState) -> ContractAddress;
+    fn get_launch_tournament_end_time(self: @TContractState) -> u64;
 }
 
 #[starknet::interface]
@@ -193,10 +209,16 @@ trait IERC721Mixin<TState> {
 }
 
 #[starknet::interface]
-trait ILeetLoot<T> {
+trait IBeasts<T> {
     fn mint(
         ref self: T, to: ContractAddress, beast: u8, prefix: u8, suffix: u8, level: u16, health: u16
     );
     fn isMinted(self: @T, beast: u8, prefix: u8, suffix: u8) -> bool;
     fn getMinter(self: @T) -> ContractAddress;
+}
+
+#[starknet::interface]
+trait IDelegateAccount<TContractState> {
+    fn set_delegate_account(ref self: TContractState, delegate_address: ContractAddress);
+    fn delegate_account(self: @TContractState) -> ContractAddress;
 }

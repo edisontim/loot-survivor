@@ -26,6 +26,16 @@ export function formatNumber(num: number): string {
   }
 }
 
+export function formatXP(xp: number): string {
+  if (Math.abs(xp) >= 1000000) {
+    return parseFloat((xp / 1000000).toFixed(2)) + "m";
+  } else if (Math.abs(xp) >= 1000) {
+    return parseFloat((xp / 1000).toFixed(2)) + "k";
+  } else {
+    return xp.toString();
+  }
+}
+
 export function indexAddress(address: string) {
   const newHex =
     address.substring(0, 2) + address.substring(3).replace(/^0+/, "");
@@ -198,11 +208,11 @@ export function calculateLevel(xp: number) {
 
 export function processItemName(item: Item) {
   if (item) {
-    if (item.special2 && item.special3 && calculateLevel(item.xp ?? 0) >= 20) {
+    if (calculateLevel(item.xp ?? 0) >= 20) {
       return `${item.special2} ${item.special3} ${item.item} ${item.special1} +1`;
-    } else if (item.special2 && item.special1) {
+    } else if (calculateLevel(item.xp ?? 0) >= 19) {
       return `${item.special2} ${item.special3} ${item.item} ${item.special1}`;
-    } else if (item.special1) {
+    } else if (calculateLevel(item.xp ?? 0) >= 15) {
       return `${item.item} ${item.special1}`;
     } else {
       return `${item.item}`;

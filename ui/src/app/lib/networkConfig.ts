@@ -7,11 +7,11 @@ export const networkConfig = {
     ethAddress:
       "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
     gameAddress:
-      "0x02e5a602219a2462c760b5d5b4526c06e1bba0fe729367cbf133a247d2a1bfbd",
+      "0x012af3b1e79b2c20a61ca4b714851ac446e48208518c655ee61f46b45e87c65c",
     lordsAddress:
       "0x064fd80fcb41d00214430574a0aa19d21cc5d6452aeb4996f31b6e9ba4f466a0",
     beastsAddress:
-      "0x0468e7a1761b65c891207aeb7cfc044044d9a61fc22c71d46a7bf4dbb67c607a",
+      "0x041b6ffc02ce30c6e941f1b34244ef8af0b3e8a70f5528476a7a68765afd6b39",
     goldenTokenAddress:
       "0x07626660faba349aad9ad2aaa0ff8645c079fa8e043a168d640d92472806eeac",
     revenueAddress:
@@ -30,26 +30,26 @@ export const networkConfig = {
   },
   mainnet: {
     rpcUrl: "https://api.cartridge.gg/x/starknet/mainnet",
-    lsGQLURL: "https://ls-indexer-mainnet.provable.games/graphql",
+    lsGQLURL: "https://ls-indexer-sepolia.provable.games/graphql",
     tokensGQLURL: "https://realms.world/api/graphql",
     ethAddress:
       "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
     gameAddress:
-      "0x0305f26ad19e0a10715d9f3137573d3a543de7b707967cd85d11234d6ec0fb7e",
+      "0x01153499afc678b92c825c86219d742f86c9385465c64aeb41a950e2ee34b1fd",
     lordsAddress:
-      "0x072599086bffce6593a2e08169c21d23564f08be1e1d0b8e05a9768f20469a3f",
+      "0x0124aeb495b947201f5fac96fd1138e326ad86195b98df6dec9009158a533b49",
     beastsAddress:
-      "0x020c7c02c973ffa3a48fb78e9472b679c72c11b59512f524154ade0a39f54136",
+      "0x0158160018d590d93528995b340260e65aedd76d28a686e9daa5c4e8fad0c5dd",
     goldenTokenAddress:
-      "0x07626660faba349aad9ad2aaa0ff8645c079fa8e043a168d640d92472806eeac",
+      "0x04f5e296c805126637552cf3930e857f380e7c078e8f00696de4fc8545356b1d",
     revenueAddress:
-      "0x0314924118945405ac0bcd6181457712795c0effc29d8dd3be86d3f3ec62adc1",
+      "0x036cE487952f25878a0158bA4A0C2Eb5eb66f0282567163a4B893A0EA5847D2d",
     pragmaAddress:
-      "0x036031daa264c24520b11d93af622c848b2499b66b41d611bac95e13cfca131a",
-    rendererAddress:
-      "0x036031daa264c24520b11d93af622c848b2499b66b41d611bac95e13cfca131a",
+      "0x2a85bd616f912537c50a49a4076db02c00b29b2cdc8a197ce92ed1837fa875b",
+    rendererAddress: "0x0",
     appUrl: "https://lootsurvivor.io/",
-    beastsViewer: "https://realms.world/collection/beasts",
+    beastsViewer:
+      "https://market.realms.world/collection/0x0158160018d590d93528995b340260e65aedd76d28a686e9daa5c4e8fad0c5dd",
     goldenTokenMintUrl: "https://realms.world/collection/goldenToken",
     blockExplorerUrl: "https:/voyager.online/",
     faucetUrl: "https://blastapi.io/faucets/starknet-sepolia-eth",
@@ -63,7 +63,7 @@ export const networkConfig = {
     tokensGQLURL: "",
     ethAddress: "0x0",
     gameAddress:
-      "0x06447d0ece46fe0e04107183aec3436ae0c12a00a3a6cb44f229984a28e8176d",
+      "0x056b3d3b967a6b9af74decc93ae7cd65289cdcb88306a53dd87f0187e15ccc29",
     lordsAddress: "0x0",
     beastsAddress: "0x0",
     goldenTokenAddress: "0x0",

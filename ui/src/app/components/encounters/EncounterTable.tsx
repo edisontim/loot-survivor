@@ -23,12 +23,10 @@ import {
 } from "@/app/lib/utils/processFutures";
 import React, { useMemo } from "react";
 import Draggable from "react-draggable";
-import { MdClose } from "react-icons/md";
 
 const EncounterTable = () => {
   const adventurer = useAdventurerStore((state) => state.adventurer);
   const adventurerEntropy = useUIStore((state) => state.adventurerEntropy);
-  const showEncounterTable = useUIStore((state) => state.showEncounterTable);
   const hasBeast = useAdventurerStore((state) => state.computed.hasBeast);
 
   const formattedAdventurerEntropy = BigInt(adventurerEntropy);
@@ -183,13 +181,6 @@ const EncounterTable = () => {
           <div className="h-full">
             <div className="flex flex-col w-full flex-grow-2">
               <div className="flex w-full justify-center h-8"></div>
-              <button
-                className="absolute top-0 right-0"
-                onClick={() => showEncounterTable(false)}
-              >
-                <MdClose className="w-10 h-10" />
-              </button>
-
               <table className="border-separate border-spacing-0 w-full sm:text-sm xl:text-sm 2xl:text-sm block overflow-x-scroll sm:overflow-y-scroll default-scroll p-2">
                 <thead
                   className="border border-terminal-green sticky top-0 bg-terminal-black uppercase"

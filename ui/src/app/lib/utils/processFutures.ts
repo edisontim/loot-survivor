@@ -17,6 +17,7 @@ interface Beast {
   tier: number;
   level: number;
   power: number;
+  gold: number;
   health: number;
   location: string;
   dodgeRoll: number;
@@ -310,9 +311,9 @@ export const processBeastEncounterCombat = (
   battleState.level = calculateLevel(battleState.xp);
   battleState.gold! += getGoldReward(
     items,
-    currentEncounter,
-    battleState.xp,
-    adventurerEntropy
+    currentEncounter.tier as number,
+    currentEncounter.level as number,
+    battleState.xp
   );
 
   const nextEncounter = getNextEncounter(
@@ -810,6 +811,7 @@ function beastEncounter(
   let ambush_location = getAttackLocation(dmg_location_rnd);
   let roll = abilityBasedAvoidThreat(level, ambush_rnd);
   let xp_reward = getXpReward(beast_level, beast_tier, Number(level));
+  let gold = getGoldReward(items!, Number(beast_tier), Number(beast_level), xp);
   let specialName = getSpecialName(specials1_rnd, specials2_rnd);
   let isCritical = getCritical(Number(level * BigInt(3)), crit_hit_rnd);
   let adventurerArmor = items?.find((item) => item.slot === ambush_location);
@@ -841,6 +843,7 @@ function beastEncounter(
     tier: Number(beast_tier),
     level: Number(beast_level),
     power: Number(power),
+    gold: gold,
     health: Number(beast_health),
     location: ambush_location,
     dodgeRoll: Number(roll) + 1,
@@ -1282,20 +1285,15 @@ export function nextAttackResult(
 
 export function getGoldReward(
   items: Item[],
-  beast: any,
-  xp: number,
-  adventurerEntropy: bigint
+  beast_tier: number,
+  beast_level: number,
+  xp: number
 ): number {
-  if (xp < 1) {
-    return 4;
-  }
-
-  let ring = items.find(
+  let ring = items?.find(
     (item) => item.slot === "Ring" && item.item === "Gold Ring"
   );
 
-  // let base_reward = Math.floor(((6 - beast.tier) * beast.level) / 2 / 2);
-  let base_reward = Math.floor(((6 - beast.tier) * beast.level) / 2);
+  let base_reward = Math.floor(((6 - beast_tier) * beast_level) / 2);
 
   if (ring) {
     base_reward += Math.floor(

@@ -18,7 +18,7 @@ import useUIStore from "@/app/hooks/useUIStore";
 import useTransactionCartStore from "@/app/hooks/useTransactionCartStore";
 import { NotificationDisplay } from "@/app/components/notifications/NotificationDisplay";
 import { useMusic } from "@/app/hooks/useMusic";
-import { Menu, ZeroUpgrade, BurnerStorage, Adventurer } from "@/app/types";
+import { Menu, ZeroUpgrade, BurnerStorage } from "@/app/types";
 import { useQueriesStore } from "@/app/hooks/useQueryStore";
 import Profile from "@/app/containers/ProfileScreen";
 import { DeathDialog } from "@/app/components/adventurer/DeathDialog";
@@ -59,12 +59,14 @@ import useControls from "@/app/hooks/useControls";
 import { networkConfig } from "@/app/lib/networkConfig";
 import useNetworkAccount from "@/app/hooks/useNetworkAccount";
 import { useController } from "@/app/context/ControllerContext";
-import EncounterTable from "@/app/components/encounters/EncounterTable";
+import EncounterDialog from "@/app/components/encounters/EnounterDialog";
 import { ProfileDialog } from "@/app/components/profile/ProfileDialog";
 import TokenLoader from "@/app/components/animations/TokenLoader";
 import CartridgeConnector from "@cartridge/connector";
 import { VRF_WAIT_TIME } from "@/app/lib/constants";
 import InterludeScreen from "@/app/containers/InterludeScreen";
+import CollectionsLeaderboardScreen from "./containers/CollectionsLeaderboardScreen";
+import TopUp from "@/app/containers/TopUp";
 
 const allMenuItems: Menu[] = [
   { id: 1, label: "Start", screen: "start", disabled: false },
@@ -74,6 +76,12 @@ const allMenuItems: Menu[] = [
   { id: 5, label: "Leaderboard", screen: "leaderboard", disabled: false },
   { id: 6, label: "Travel Log", screen: "encounters", disabled: false },
   { id: 7, label: "Guide", screen: "guide", disabled: false },
+  {
+    id: 8,
+    label: "Tournament",
+    screen: "collections leaderboard",
+    disabled: false,
+  },
 ];
 
 const mobileMenuItems: Menu[] = [
@@ -83,6 +91,12 @@ const mobileMenuItems: Menu[] = [
   { id: 4, label: "Upgrade", screen: "upgrade", disabled: false },
   { id: 5, label: "Travel Log", screen: "encounters", disabled: false },
   { id: 6, label: "Guide", screen: "guide", disabled: false },
+  {
+    id: 7,
+    label: "Collections",
+    screen: "collections leaderboard",
+    disabled: false,
+  },
 ];
 
 export default function Main() {
@@ -118,6 +132,7 @@ function Home() {
   const owner = account?.address ? padAddress(account.address) : "";
   const isWrongNetwork = useUIStore((state) => state.isWrongNetwork);
   const setIsWrongNetwork = useUIStore((state) => state.setIsWrongNetwork);
+  const topUpDialog = useUIStore((state) => state.topUpDialog);
   const showTopUpDialog = useUIStore((state) => state.showTopUpDialog);
   const setTopUpAccount = useUIStore((state) => state.setTopUpAccount);
   const setSpecialBeast = useUIStore((state) => state.setSpecialBeast);
@@ -198,7 +213,9 @@ function Home() {
   >();
   const setUsername = useUIStore((state) => state.setUsername);
   const setIsController = useUIStore((state) => state.setIsController);
-  const setControllerAdmin = useUIStore((state) => state.setControllerAdmin);
+  const setControllerDelegate = useUIStore(
+    (state) => state.setControllerDelegate
+  );
 
   useEffect(() => {
     const init = async () => {
@@ -209,14 +226,14 @@ function Home() {
         connector as unknown as CartridgeConnector
       ).delegateAccount();
       setUsername(username || "");
-      setControllerAdmin(delegateAccount!.toString() || "");
+      setControllerDelegate(delegateAccount!.toString() || "");
     };
     if (connector?.id.includes("cartridge")) {
       setIsController(true);
       init();
     } else {
       setIsController(false);
-      setControllerAdmin("");
+      setControllerDelegate("");
       setUsername("");
     }
   }, [connector]);
@@ -285,6 +302,7 @@ function Home() {
     setAdventurer,
     setStartOption,
     ethBalance,
+    lordsBalance,
     showTopUpDialog,
     setTopUpAccount,
     account: account!,
@@ -321,6 +339,8 @@ function Home() {
   const ownerVariables = useMemo(() => {
     return {
       owner: indexAddress(owner),
+      health: 0,
+      skip: 0,
     };
   }, [owner]);
 
@@ -488,16 +508,6 @@ function Home() {
   );
 
   const adventurers = adventurersData?.adventurers;
-
-  useEffect(() => {
-    if (adventurers && adventurers.length > 0) {
-      const latestAdventurer: Adventurer = adventurers[adventurers.length - 1];
-      if (latestAdventurer.health !== 0) {
-        setAdventurer(latestAdventurer);
-        handleSwitchAdventurer(latestAdventurer.id!);
-      }
-    }
-  }, [adventurers]);
 
   useEffect(() => {
     if (adventurer?.id && adventurer.health !== 0) {
@@ -682,12 +692,25 @@ function Home() {
           costToPlay={costToPlay}
           mintLords={mintLords}
           getBalances={getBalances}
+          adventurers={adventurers}
         />
       ) : (
         <>
           <div className="flex flex-col w-full">
             {specialBeastDefeated && (
               <SpecialBeast beastsContract={beastsContract!} />
+            )}
+            {topUpDialog && (
+              <TopUp
+                ethBalance={ethBalance}
+                lordsBalance={lordsBalance}
+                costToPlay={costToPlay}
+                mintLords={mintLords}
+                gameContract={gameContract!}
+                lordsContract={lordsContract!}
+                ethContract={ethContract!}
+                showTopUpDialog={showTopUpDialog}
+              />
             )}
             {!spawnLoader && hash && (
               <div className="sm:hidden">
@@ -778,13 +801,16 @@ function Home() {
                 )}
                 {screen === "encounters" && <EncountersScreen />}
                 {screen === "guide" && <GuideScreen />}
+                {screen === "collections leaderboard" && (
+                  <CollectionsLeaderboardScreen />
+                )}
                 {screen === "settings" && <Settings />}
                 {screen === "player" && <Player gameContract={gameContract!} />}
                 {screen === "wallet" && <WalletSelect />}
 
                 {encounterTable && (
-                  <div className="absolute top-0 right-0 sm:right-32 sm:top-32">
-                    <EncounterTable />
+                  <div className="absolute top-0 right-0 sm:right-32 sm:top-32 z-10">
+                    <EncounterDialog />
                   </div>
                 )}
 
