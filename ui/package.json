@@ -13,6 +13,8 @@
     "@cartridge/connector": "^0.3.43",
     "@dojoengine/create-burner": "^0.7.0-alpha.1",
     "@fontsource/vt323": "^4.5.10",
+    "@scure/starknet": "^1.0.0",
+    "@starknet-react/chains": "^0.1.7",
     "@starknet-react/core": "^2.9.0",
     "@svgr/webpack": "^7.0.0",
     "@types/js-cookie": "^3.0.3",
@@ -37,6 +39,7 @@
     "react": "18.2.0",
     "react-countup": "^6.4.2",
     "react-dom": "18.2.0",
+    "react-draggable": "^4.4.6",
     "react-icons": "^4.8.0",
     "react-responsive": "^9.0.2",
     "react-transition-group": "^4.4.5",
@@ -48,6 +51,7 @@
     "typescript": "5.0.2",
     "use-previous": "^1.2.0",
     "use-sound": "^4.0.1",
+    "zod": "^3.23.8",
     "zustand": "^4.3.7"
   },
   "devDependencies": {
