@@ -126,7 +126,8 @@ const recurseTree = (
   items: Item[],
   adventurerEntropy: bigint,
   currentlyFighting: boolean,
-  adventurerLevel: number
+  adventurerLevel: number,
+  initialLevel: number
 ) => {
   let currentAdventurer = structuredClone(tree.state);
   let xp = currentAdventurer.xp!;
@@ -141,9 +142,10 @@ const recurseTree = (
     tree.encounter = undefined;
     return;
   }
-  const level = BigInt(Math.floor(Math.sqrt(xp)));
 
-  if (level > adventurerLevel) {
+  const level = BigInt(Math.floor(Math.sqrt(xp)));
+  if (level > initialLevel) {
+	console.log("level > initialLevel")
     tree.fight = undefined;
     tree.flee = undefined;
     tree.explore = undefined;
@@ -166,7 +168,14 @@ const recurseTree = (
       );
 
       tree.fight = fightNode;
-      recurseTree(fightNode, items, adventurerEntropy, false, adventurerLevel);
+      recurseTree(
+        fightNode,
+        items,
+        adventurerEntropy,
+        false,
+        adventurerLevel,
+        initialLevel
+      );
     }
     if (tree.flee === undefined) {
       const fleeNode = processBeastEncounterFlee(
@@ -177,7 +186,14 @@ const recurseTree = (
         currentlyFighting
       );
       tree.flee = fleeNode;
-      recurseTree(fleeNode, items, adventurerEntropy, false, adventurerLevel);
+      recurseTree(
+        fleeNode,
+        items,
+        adventurerEntropy,
+        false,
+        adventurerLevel,
+        initialLevel
+      );
     }
   } else if (currentEncounter?.encounter === "Obstacle") {
     const obstacleNode = processObstacleEncounter(
@@ -188,7 +204,14 @@ const recurseTree = (
       currentlyFighting
     );
     tree.explore = obstacleNode;
-    recurseTree(obstacleNode, items, adventurerEntropy, false, adventurerLevel);
+    recurseTree(
+      obstacleNode,
+      items,
+      adventurerEntropy,
+      false,
+      adventurerLevel,
+      initialLevel
+    );
   } else if (currentEncounter?.encounter === "Discovery") {
     const discoveryNode = processDiscoveryEncounter(
       currentAdventurer,
@@ -203,7 +226,8 @@ const recurseTree = (
       items,
       adventurerEntropy,
       false,
-      adventurerLevel
+      adventurerLevel,
+      initialLevel
     );
   }
 };
@@ -237,6 +261,7 @@ export const getDecisionTree = (
     items,
     adventurerEntropy,
     currentlyFighting,
+    adventurerLevel,
     adventurerLevel
   );
   return tree;
@@ -538,7 +563,7 @@ function getNextEncounter(
       rnd5, // use same entropy for crit hit, initial attack location, and beast specials
       rnd6,
       items
-    ); // to create some fun organic lore for the beast special names, items);
+    ) as any; // to create some fun organic lore for the beast special names, items);
   } else if (encounter === 1) {
     return obstacleEncounter(level, rnd1, rnd4, rnd5, rnd6, rnd7, xp, items);
   } else {

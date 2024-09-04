@@ -14,7 +14,7 @@ import { useQueriesStore } from "@/app/hooks/useQueryStore";
 import useUIStore from "@/app/hooks/useUIStore";
 import { vitalityIncrease } from "@/app/lib/constants";
 import { GameData } from "@/app/lib/data/GameData";
-import { calculateLevel, getItemData } from "@/app/lib/utils";
+import { calculateLevel, getItemData, getItemPrice } from "@/app/lib/utils";
 import {
   getDecisionTree,
   getOutcomesWithPath,
@@ -136,6 +136,12 @@ const EncounterTable = () => {
       );
     }
 
+    const totalCost = purchaseItemsObjects.reduce((acc, item) => {
+      return acc + getItemPrice(item.tier, newAdventurer?.charisma!);
+    }, 0);
+    console.log(totalCost);
+    newAdventurer.gold = adventurer?.gold! - totalCost;
+
     return newAdventurer;
   }, [
     adventurer,
@@ -146,6 +152,7 @@ const EncounterTable = () => {
     upgrades.Wisdom,
     upgrades.Vitality,
     upgrades.Dexterity,
+    purchaseItemsObjects,
   ]);
 
   const encounters = useMemo(
@@ -417,8 +424,8 @@ const EncounterTable = () => {
             </div>
 
             {updatedAdventurer?.entropy &&
-              outcomesWithPath.map((steps: Step[]) => (
-                <React.Fragment>
+              outcomesWithPath.map((steps: Step[], index: number) => (
+                <React.Fragment key={index}>
                   Path {steps.map((step) => step.previousDecision).join(" -> ")}
                   <table className="border-separate border-spacing-0 w-full sm:text-sm xl:text-sm 2xl:text-sm block overflow-x-scroll sm:overflow-y-scroll default-scroll p-2">
                     <thead
@@ -504,7 +511,7 @@ const EncounterTable = () => {
                               <tr className="">
                                 <td className="py-2 border-b border-terminal-green">
                                   <span className="flex">
-                                    {encounter.xp}. ({adventurer.level!})
+                                    {adventurer.xp}. ({adventurer.level!})
                                   </span>
                                 </td>
                                 <td
@@ -643,8 +650,11 @@ const EncounterTable = () => {
                                 </td>
                                 <td className="py-2 border-b border-terminal-green">
                                   <span className="flex justify-center text-terminal-yellow">
-                                    {encounter.nextXp} (
-                                    {calculateLevel(encounter.nextXp)})
+                                    {nextAdventurerState.xp} (
+                                    {calculateLevel(
+                                      Number(nextAdventurerState.xp)
+                                    )}
+                                    )
                                   </span>
                                 </td>
                                 <td className="py-2 border-b border-terminal-green">

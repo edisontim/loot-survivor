@@ -1,9 +1,9 @@
 import { Button } from "@/app/components/buttons/Button";
+import { SoundOffIcon, SoundOnIcon } from "@/app/components/icons/Icons";
+import { soundSelector, useUiSounds } from "@/app/hooks/useUiSound";
+import useUIStore, { Network } from "@/app/hooks/useUIStore";
 import Profile from "public/icons/profile.svg";
 import QuestionMark from "public/icons/question-mark.svg";
-import useUIStore, { Network } from "@/app/hooks/useUIStore";
-import { SoundOffIcon, SoundOnIcon } from "@/app/components/icons/Icons";
-import { useUiSounds, soundSelector } from "@/app/hooks/useUiSound";
 
 const Intro = () => {
   const {
@@ -14,7 +14,6 @@ const Intro = () => {
     setIsMuted,
     isMuted,
   } = useUIStore();
-
   const { play: clickPlay } = useUiSounds(soundSelector.click);
 
   let network = "";
@@ -22,7 +21,7 @@ const Intro = () => {
   if (process.env.NEXT_PUBLIC_NETWORK === "development") {
     network = "sepolia";
   } else {
-    network = process.env.NEXT_PUBLIC_NETWORK!;
+    network = "sepolia";
   }
 
   return (
