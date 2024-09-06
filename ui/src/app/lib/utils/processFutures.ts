@@ -804,8 +804,8 @@ function getBeastHealth(level: bigint, seed: bigint): bigint {
     health += BigInt(10);
   }
 
-  if (health > 511) {
-    return BigInt(511);
+  if (health > 1023) {
+    return BigInt(1023);
   } else {
     return health;
   }

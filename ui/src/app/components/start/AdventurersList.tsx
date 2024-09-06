@@ -85,7 +85,7 @@ export const AdventurersList = ({
 
   const adventurersVariables = useMemo(() => {
     return {
-      owner: indexAddress(owner),
+      owner: indexAddress(owner).toLowerCase(),
       health: showZeroHealth ? 0 : 1,
       skip: skip,
     };

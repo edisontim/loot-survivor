@@ -13,7 +13,7 @@ import { FormData, GameToken } from "@/app/types";
 import { Button } from "@/app/components/buttons/Button";
 import { getArcadeConnectors, getWalletConnectors } from "@/app/lib/connectors";
 import Lords from "public/icons/lords.svg";
-import { indexAddress, formatTimeSeconds, formatLords } from "@/app/lib/utils";
+import { indexAddress, formatLords } from "@/app/lib/utils";
 import { networkConfig } from "@/app/lib/networkConfig";
 import useNetworkAccount from "@/app/hooks/useNetworkAccount";
 
@@ -151,15 +151,6 @@ export const Spawn = ({
           alt="adventurer facing beast"
           fill
         />
-
-        {onMainnet && (
-          <div className="absolute top-1/6 left-0 right-0 flex flex-col items-center text-center">
-            <p className="text-2xl">Estimated wait time:</p>
-            <p className="text-4xl text-terminal-yellow">
-              {formatTimeSeconds(Math.floor(30))}
-            </p>
-          </div>
-        )}
 
         <div className="absolute top-1/3 left-0 right-0 flex flex-col items-center text-center gap-4 z-10">
           <TypeAnimation

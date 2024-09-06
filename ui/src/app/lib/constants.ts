@@ -79,17 +79,17 @@ export const collectionData = [
   {
     avatar: "/collections/Blobert.png",
     name: "Bloberts",
-    token: "0x04a79a62dc260f2e9e4b208181b2014c14f3ff44fe7d0e6452a759ed91a106d1",
+    token: "0x00539f522b29ae9251dbf7443c7a950cf260372e69efab3710a11bf17a9599f1",
   },
   {
     avatar: "/collections/Ducks-Everywhere.png",
     name: "Ducks Everywhere",
-    token: "0x07c006181ea9cc7dd1b09c29e9ff23112be30ecfef73b760fabe5bc7ae6ecb44",
+    token: "0x04fa864a706e3403fd17ac8df307f22eafa21b778b73353abf69a622e47a2003",
   },
   {
     avatar: "/collections/Everai.png",
     name: "Everai",
-    token: "0x04efe851716110abeee81b7f22f7964845355ffa32e6833fc3a557a1881721ac",
+    token: "0x02acee8c430f62333cf0e0e7a94b2347b5513b4c25f699461dd8d7b23c072478",
   },
   {
     avatar: "/collections/Focus-Tree.png",
@@ -99,12 +99,12 @@ export const collectionData = [
   {
     avatar: "/collections/Influence.png",
     name: "Influence",
-    token: "0x07280a807c8b79379bec87919433b7b836b93a92e6d71b24ee99f4ffe33dd337",
+    token: "0x0241b9c4ce12c06f49fee2ec7c16337386fa5185168f538a7631aacecdf3df74",
   },
   {
     avatar: "/collections/The-Syndicate.png",
     name: "The Syndicate",
-    token: "0x1",
+    token: "0x065a413ce0b5c169c583c7efad857913523485f1febcf5ef4f3909133f04904a",
   },
   {
     avatar: "/collections/Pixel-Banners.png",

@@ -65,7 +65,7 @@ export default function AdventurerScreen({
     "adventurersByOwnerCountQuery",
     getAdventurersByOwnerCount,
     {
-      owner: indexAddress(owner),
+      owner: indexAddress(owner ?? "0x0").toLowerCase(),
     },
     owner === ""
   );
@@ -75,7 +75,7 @@ export default function AdventurerScreen({
     "aliveAdventurersByOwnerCountQuery",
     getAliveAdventurersCount,
     {
-      owner: indexAddress(owner),
+      owner: indexAddress(owner ?? "0x0").toLowerCase(),
     },
     owner === ""
   );

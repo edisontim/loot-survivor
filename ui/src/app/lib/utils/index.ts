@@ -37,9 +37,7 @@ export function formatXP(xp: number): string {
 }
 
 export function indexAddress(address: string) {
-  const newHex =
-    address.substring(0, 2) + address.substring(3).replace(/^0+/, "");
-  return newHex;
+  return address.replace(/^0x0+/, "0x");
 }
 
 export function padAddress(address: string) {

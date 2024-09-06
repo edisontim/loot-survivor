@@ -222,11 +222,8 @@ function Home() {
       const username = await (
         connector as unknown as CartridgeConnector
       ).username();
-      const delegateAccount = await (
-        connector as unknown as CartridgeConnector
-      ).delegateAccount();
       setUsername(username || "");
-      setControllerDelegate(delegateAccount!.toString() || "");
+      setControllerDelegate("");
     };
     if (connector?.id.includes("cartridge")) {
       setIsController(true);
@@ -243,7 +240,7 @@ function Home() {
 
   const getBalances = async () => {
     const balances = await fetchBalances(
-      address ?? "0x0",
+      indexAddress(owner ?? "0x0").toLowerCase(),
       ethContract,
       lordsContract,
       gameContract
@@ -338,7 +335,7 @@ function Home() {
 
   const ownerVariables = useMemo(() => {
     return {
-      owner: indexAddress(owner),
+      owner: indexAddress(owner ?? "0x0").toLowerCase(),
       health: 0,
       skip: 0,
     };
