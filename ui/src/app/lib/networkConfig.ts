@@ -43,7 +43,7 @@ export const networkConfig = {
     goldenTokenAddress:
       "0x04f5e296c805126637552cf3930e857f380e7c078e8f00696de4fc8545356b1d",
     revenueAddress:
-      "0x036cE487952f25878a0158bA4A0C2Eb5eb66f0282567163a4B893A0EA5847D2d",
+      "0x0628b9dE919e8d1Cfb31A4e435E0CA27F33a8DC71b7475fD1a122222A6eb2f89",
     pragmaAddress:
       "0x2a85bd616f912537c50a49a4076db02c00b29b2cdc8a197ce92ed1837fa875b",
     rendererAddress: "0x0",
