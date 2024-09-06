@@ -537,7 +537,8 @@ const EncounterTable = () => {
                               steps[index + 1]?.adventurer || adventurer;
                             if (!encounter) {
                               let levelUps =
-                                calculateLevel(adventurer.xp) - startingLevel;
+                                calculateLevel(adventurer.xp || 4) -
+                                (startingLevel || 1);
                               console.log(adventurer.xp);
                               console.log(levelUps);
                               return (
@@ -599,7 +600,7 @@ const EncounterTable = () => {
                                     {encounter.encounter}
                                   </span>
                                   {encounter.encounter === "Beast" &&
-                                    encounter.level >= 19 && (
+                                    (encounter?.level || 1) >= 19 && (
                                       <span className="tooltiptext bottom">
                                         {encounter.specialName}
                                       </span>
@@ -633,12 +634,16 @@ const EncounterTable = () => {
                                     {encounter.type === "Loot" && (
                                       <div className="flex items-center">
                                         {" "}
-                                        {gameData.ITEMS[encounter.tier]}{" "}
+                                        {
+                                          gameData.ITEMS[
+                                            encounter.tier as number
+                                          ]
+                                        }{" "}
                                         <LootIcon
                                           type={
                                             gameData.ITEM_SLOTS[
                                               gameData.ITEMS[
-                                                encounter.tier
+                                                encounter.tier as number
                                               ].replace(/\s+/g, "")
                                             ]
                                           }
