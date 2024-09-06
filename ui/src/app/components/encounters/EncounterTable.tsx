@@ -3,8 +3,10 @@ import {
   BludgeonIcon,
   ClothIcon,
   CoinIcon,
+  DownArrowIcon,
   HeartVitalityIcon,
   HideIcon,
+  InfoIcon,
   MagicIcon,
   MetalIcon,
 } from "@/app/components/icons/Icons";
@@ -21,7 +23,7 @@ import {
   listAllEncounters,
   Step,
 } from "@/app/lib/utils/processFutures";
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import Draggable from "react-draggable";
 
 const EncounterTable = () => {
@@ -33,6 +35,8 @@ const EncounterTable = () => {
   const purchaseItems = useUIStore((state) => state.purchaseItems);
   const potionAmount = useUIStore((state) => state.potionAmount);
   const upgrades = useUIStore((state) => state.upgrades);
+
+  const [hoveredBeast, setHoveredBeast] = useState<number | null>(null);
 
   const { data } = useQueriesStore();
 
@@ -139,7 +143,7 @@ const EncounterTable = () => {
     const totalCost = purchaseItemsObjects.reduce((acc, item) => {
       return acc + getItemPrice(item.tier, newAdventurer?.charisma!);
     }, 0);
-    console.log(totalCost);
+
     newAdventurer.gold = adventurer?.gold! - totalCost;
 
     return newAdventurer;
@@ -181,13 +185,14 @@ const EncounterTable = () => {
     );
   }, [updatedAdventurer?.xp, formattedAdventurerEntropy, items]);
 
+  const startingLevel = adventurer?.level;
+
   return (
     <Draggable defaultClassName="absolute">
       <div className="fixed z-50">
         <div className="flex flex-col gap-5 sm:gap-0 sm:flex-row justify-between w-full bg-terminal-black max-h-[300px] overflow-y-auto border border-terminal-green text-xs sm:text-base">
-          <div className="h-full">
-            <div className="flex flex-col w-full flex-grow-2">
-              <div className="flex w-full justify-center h-8"></div>
+          <div className="h-full w-full">
+            <div className="mt-2">
               <table className="border-separate border-spacing-0 w-full sm:text-sm xl:text-sm 2xl:text-sm block overflow-x-scroll sm:overflow-y-scroll default-scroll p-2">
                 <thead
                   className="border border-terminal-green sticky top-0 bg-terminal-black uppercase"
@@ -195,16 +200,13 @@ const EncounterTable = () => {
                 >
                   <tr className="border border-terminal-green">
                     <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
-                      XP (lvl)
+                      XP
+                    </th>
+                    <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
+                      Type
                     </th>
                     <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
                       Encounter
-                    </th>
-                    <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
-                      Tier
-                    </th>
-                    <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
-                      Lvl
                     </th>
                     <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
                       HP
@@ -215,218 +217,264 @@ const EncounterTable = () => {
                     <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
                       Location
                     </th>
-                    <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
+                    <th className="relative py-2 px-1 border-b border-terminal-green">
                       Avoid
+                    </th>
+                    <th className="relative py-2 px-1 border-b border-terminal-green">
+                      Tip
+                    </th>
+                    <th className="relative py-2 px-1 border-b border-terminal-green">
+                      Gold
                     </th>
                     <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
                       Crit
                     </th>
-                    <th className="py-2 px-1 border-b border-terminal-green">
-                      Next XP (Lvl)
-                    </th>
-                    <th className="py-2 px-1 border-b border-terminal-green">
-                      Gold
+                    <th className="relative py-2 px-1 border-b border-terminal-green">
+                      Next
+                      <span className="absolute left-1/2 transform -translate-x-1/2 bottom-0 text-xs text-terminal-yellow">
+                        +LVL
+                      </span>
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {adventurerEntropy ? (
-                    React.Children.toArray(
-                      encounters.map((encounter: any, index: number) => {
-                        let [special2, special3] = encounter.specialName?.split(
-                          " "
-                        ) || ["no", "no"];
-                        let nameMatch =
-                          encounter.encounter === "Beast" &&
-                          encounter.level >= 19
-                            ? armoritems.find(
-                                (item) =>
-                                  item.special2 === special2 ||
-                                  item.special3 === special3
-                              )
-                            : false;
-                        let weaponMatch =
-                          encounter.encounter === "Beast" &&
-                          encounter.level >= 19
-                            ? weaponItems.find(
-                                (item) =>
-                                  item.special2 === special2 ||
-                                  item.special3 === special3
-                              )
-                            : false;
+                  {React.Children.toArray(
+                    encounters.map((encounter: any, index: number) => {
+                      let [special2, special3] = encounter.specialName?.split(
+                        " "
+                      ) || ["no", "no"];
+                      let nameMatch =
+                        encounter.encounter === "Beast" && encounter.level >= 19
+                          ? armoritems.find(
+                              (item) =>
+                                item.special2 === special2 ||
+                                item.special3 === special3
+                            )
+                          : false;
+                      let weaponMatch =
+                        encounter.encounter === "Beast" && encounter.level >= 19
+                          ? weaponItems.find(
+                              (item) =>
+                                item.special2 === special2 ||
+                                item.special3 === special3
+                            )
+                          : false;
 
-                        return (
-                          <tr className="">
-                            <td className="py-2 border-b border-terminal-green">
-                              <span className="flex">
-                                {encounter.xp}. ({encounter.adventurerLevel})
-                              </span>
-                            </td>
-                            <td
-                              className={`py-2 border-b border-terminal-green tooltip flex flex-row gap-1 ${
-                                nameMatch
-                                  ? "text-red-500"
-                                  : weaponMatch
-                                  ? "text-green-500"
-                                  : "text-terminal-yellow"
-                              }`}
-                            >
-                              <span className="uppercase">
-                                {encounter.encounter}
-                              </span>
-                              {encounter.encounter === "Beast" &&
-                                encounter.level >= 19 && (
-                                  <span className="tooltiptext bottom">
-                                    {encounter.specialName}
-                                  </span>
-                                )}
-                            </td>
-                            <td className="py-2 border-b border-terminal-green">
-                              <span className="flex justify-center">
-                                {encounter.encounter !== "Discovery" &&
-                                  encounter.tier}
-                                {encounter.type === "Health" && (
-                                  <div className="flex items-center">
-                                    {" "}
-                                    {encounter.tier}{" "}
-                                    <HeartVitalityIcon className="h-3 pl-0.5" />
-                                  </div>
-                                )}
-                                {encounter.type === "Gold" && (
-                                  <div className="flex items-center">
-                                    {" "}
-                                    {encounter.tier}{" "}
-                                    <CoinIcon className="pl-0.5 mt-0.5 self-center h-4 fill-current text-terminal-yellow" />
-                                  </div>
-                                )}
-                                {encounter.type === "Loot" && (
-                                  <div className="flex items-center">
-                                    {" "}
-                                    {gameData.ITEMS[encounter.tier]}{" "}
-                                    <LootIcon
-                                      type={
-                                        gameData.ITEM_SLOTS[
-                                          gameData.ITEMS[
-                                            encounter.tier
-                                          ].replace(/\s+/g, "")
-                                        ]
-                                      }
-                                      className="pl-0.5 mt-0.5 self-center h-4 fill-current text-terminal-yellow"
-                                    />
-                                  </div>
-                                )}
-                              </span>
-                            </td>
-                            <td className="py-2 border-b border-terminal-green">
-                              <span className="flex justify-center">
-                                {encounter.level}
-                              </span>
-                            </td>
-                            <td className="py-2 border-b border-terminal-green">
-                              <span className="flex justify-center">
-                                {encounter.health}
-                              </span>
-                            </td>
-                            <td className="py-2 border-b border-terminal-green">
-                              <span className="flex justify-center gap-1 items-center">
-                                {encounter.type === "Blade" && (
-                                  <BladeIcon className="h-4" />
-                                )}
-                                {encounter.type === "Bludgeon" && (
-                                  <BludgeonIcon className="h-4" />
-                                )}
-                                {encounter.type === "Magic" && (
-                                  <MagicIcon className="h-4" />
-                                )}
+                      let levelUps =
+                        calculateLevel(encounter.nextXp) - adventurer?.level!;
 
-                                {encounter.encounter === "Beast" && (
-                                  <>
-                                    <span>/</span>
-                                    {encounter.type === "Blade" && (
-                                      <HideIcon className="h-4" />
-                                    )}
-                                    {encounter.type === "Bludgeon" && (
-                                      <MetalIcon className="h-4" />
-                                    )}
-                                    {encounter.type === "Magic" && (
-                                      <ClothIcon className="h-4" />
-                                    )}
-                                  </>
-                                )}
-                              </span>
-                            </td>
-                            <td className="py-2 border-b border-terminal-green">
-                              <span className="flex justify-center">
-                                {encounter.location}
-                              </span>
-                            </td>
-                            <td className="py-2 border-b border-terminal-green">
-                              <span className="flex items-center gap-1">
-                                <span className="uppercase">
-                                  {encounter.dodgeRoll &&
-                                  (encounter.encounter === "Beast"
-                                    ? updatedAdventurer?.wisdom!
-                                    : updatedAdventurer?.intelligence!) >=
-                                    encounter.dodgeRoll
-                                    ? "Yes"
-                                    : "No"}
-                                </span>
-                                <span className="flex justify-center">
-                                  {encounter.dodgeRoll &&
-                                    `(${encounter.dodgeRoll})`}
-                                </span>
-                              </span>
-                            </td>
-                            <td
-                              className={`py-2 border-b border-terminal-green ${
-                                encounter.criticalMultiplier > 3
-                                  ? "text-red-500"
-                                  : encounter.criticalMultiplier > 0
-                                  ? "text-terminal-yellow"
-                                  : ""
-                              }`}
-                            >
-                              {encounter.criticalMultiplier >= 0 && (
-                                <span className="flex justify-center">
-                                  {encounter.criticalMultiplier > 0
-                                    ? `${encounter.criticalMultiplier * 20}%`
-                                    : "No"}
+                      return (
+                        <tr>
+                          <td className="py-2 border-b border-terminal-green">
+                            <span className="flex">{encounter.xp}</span>
+                          </td>
+                          <td
+                            className={`py-2 border-b border-terminal-green tooltip flex flex-row gap-1 ${
+                              nameMatch
+                                ? "text-red-500"
+                                : weaponMatch
+                                ? "text-green-500"
+                                : "text-terminal-yellow"
+                            }`}
+                          >
+                            <span className="uppercase">
+                              {encounter.encounter}
+                            </span>
+                            {encounter.encounter === "Beast" &&
+                              encounter.level >= 19 && (
+                                <span className="tooltiptext bottom">
+                                  {encounter.specialName}
                                 </span>
                               )}
-                            </td>
-                            <td className="py-2 border-b border-terminal-green">
-                              <span className="flex justify-center text-terminal-yellow">
-                                {encounter.nextXp} (
-                                {calculateLevel(encounter.nextXp)})
-                              </span>
-                            </td>
-                            <td className="py-2 border-b border-terminal-green">
+                          </td>
+                          <td className="py-2 border-b border-terminal-green">
+                            <span className="flex justify-center">
+                              {encounter.encounter !== "Discovery" && (
+                                <div className="relative flex flex-row gap-1 items-center justify-center w-full">
+                                  <span className="text-xs">PWR</span>
+                                  <span>{encounter.power}</span>
+                                  <span className="absolute bottom-[-10px] text-terminal-yellow text-xs">
+                                    T{encounter.tier} L{encounter.level}
+                                  </span>
+                                </div>
+                              )}
+                              {encounter.type === "Health" && (
+                                <div className="flex items-center">
+                                  {" "}
+                                  <HeartVitalityIcon className="h-3 pl-0.5" />
+                                  {encounter.tier}{" "}
+                                </div>
+                              )}
+                              {encounter.type === "Gold" && (
+                                <div className="flex items-center">
+                                  {" "}
+                                  <CoinIcon className="pl-0.5 mt-0.5 self-center h-4 fill-current text-terminal-yellow" />
+                                  {encounter.tier}{" "}
+                                </div>
+                              )}
+                              {encounter.type === "Loot" && (
+                                <div className="flex items-center">
+                                  {" "}
+                                  {gameData.ITEMS[encounter.tier]}{" "}
+                                  <LootIcon
+                                    type={
+                                      gameData.ITEM_SLOTS[
+                                        gameData.ITEMS[encounter.tier].replace(
+                                          /\s+/g,
+                                          ""
+                                        )
+                                      ]
+                                    }
+                                    size={"w-4"}
+                                    className="pl-0.5 mt-0.5 self-center h-4 fill-current text-terminal-yellow"
+                                  />
+                                </div>
+                              )}
+                            </span>
+                          </td>
+                          <td className="py-2 border-b border-terminal-green">
+                            <span className="flex justify-center">
+                              {encounter.health}
+                            </span>
+                          </td>
+                          <td className="py-2 border-b border-terminal-green">
+                            <span className="relative flex justify-center gap-1 items-center uppercase">
                               {encounter.encounter === "Beast" && (
-                                <span className="flex justify-center">
-                                  +
-                                  {Math.floor(
-                                    (encounter.level * (6 - encounter.tier)) / 2
+                                <span
+                                  className="absolute top-[-8px] right-[-5px] w-3 h-3 cursor-pointer"
+                                  onMouseEnter={() => setHoveredBeast(index)}
+                                  onMouseLeave={() => setHoveredBeast(null)}
+                                >
+                                  <InfoIcon />
+                                  {hoveredBeast === index && (
+                                    <span className="absolute flex flex-row items-center gap-1 p-2 border border-terminal-green bg-terminal-black">
+                                      {encounter.type === "Blade" && (
+                                        <BladeIcon className="h-4" />
+                                      )}
+                                      {encounter.type === "Bludgeon" && (
+                                        <BludgeonIcon className="h-4" />
+                                      )}
+                                      {encounter.type === "Magic" && (
+                                        <MagicIcon className="h-4" />
+                                      )}
+
+                                      {encounter.encounter === "Beast" && (
+                                        <>
+                                          <span>/</span>
+                                          {encounter.type === "Blade" && (
+                                            <HideIcon className="h-4" />
+                                          )}
+                                          {encounter.type === "Bludgeon" && (
+                                            <MetalIcon className="h-4" />
+                                          )}
+                                          {encounter.type === "Magic" && (
+                                            <ClothIcon className="h-4" />
+                                          )}
+                                        </>
+                                      )}
+                                    </span>
                                   )}
                                 </span>
                               )}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )
-                  ) : (
-                    <tr className="flex items-center h-10 absolute">
-                      <span className="p-4">Waiting for new entropy...</span>
-                    </tr>
+                              {encounter.encounter === "Beast" ? (
+                                (encounter.type === "Blade" && "Hunter") ||
+                                (encounter.type === "Bludgeon" && "Brute") ||
+                                (encounter.type === "Magic" && "Magical")
+                              ) : (
+                                <>
+                                  {encounter.type === "Blade" && (
+                                    <BladeIcon className="h-4" />
+                                  )}
+                                  {encounter.type === "Bludgeon" && (
+                                    <BludgeonIcon className="h-4" />
+                                  )}
+                                  {encounter.type === "Magic" && (
+                                    <MagicIcon className="h-4" />
+                                  )}
+                                </>
+                              )}
+                            </span>
+                          </td>
+                          <td className="py-2 border-b border-terminal-green">
+                            <span className="flex justify-center uppercase">
+                              {encounter.location}
+                            </span>
+                          </td>
+                          <td className="py-2 border-b border-terminal-green">
+                            <span className="flex justify-center uppercase">
+                              {encounter.dodgeRoll &&
+                              (encounter.encounter === "Beast"
+                                ? adventurer?.wisdom!
+                                : adventurer?.intelligence!) >=
+                                encounter.dodgeRoll
+                                ? "Yes"
+                                : "No"}
+                            </span>
+                          </td>
+                          <td className="py-2 border-b border-terminal-green">
+                            <span className="flex gap-1 justify-center uppercase text-terminal-yellow">
+                              {encounter.dodgeRoll && (
+                                <>
+                                  <span>
+                                    {encounter.encounter === "Beast"
+                                      ? "WIS"
+                                      : "INT"}
+                                  </span>
+                                  <span>{encounter.dodgeRoll}</span>
+                                </>
+                              )}
+                            </span>
+                          </td>
+                          <td className="py-2 border-b border-terminal-green">
+                            <span className="flex justify-center uppercase">
+                              {encounter.encounter === "Beast" && (
+                                <span className="flex flex-row items-center text-terminal-yellow">
+                                  <CoinIcon className="h-4 fill-current text-terminal-yellow" />
+                                  {encounter.gold}
+                                </span>
+                              )}
+                            </span>
+                          </td>
+                          <td
+                            className={`py-2 border-b border-terminal-green uppercase ${
+                              encounter.isCritical ? "text-red-500" : ""
+                            }`}
+                          >
+                            {encounter.isCritical && (
+                              <span className="flex justify-center">
+                                {encounter.isCritical ? "Yes" : "No"}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2 border-b border-terminal-green">
+                            <span className="flex flex-row gap-1 justify-center">
+                              {encounter.nextXp}{" "}
+                              <span className="text-terminal-yellow flex">
+                                {Array.from({ length: levelUps }).map(
+                                  (_, index) => (
+                                    <DownArrowIcon
+                                      key={index}
+                                      className="h-4 transform rotate-180"
+                                    />
+                                  )
+                                )}
+                              </span>
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
             </div>
-
             {updatedAdventurer?.entropy &&
               outcomesWithPath.map((steps: Step[], index: number) => (
-                <React.Fragment key={index}>
-                  Path {steps.map((step) => step.previousDecision).join(" -> ")}
+                <div key={index} className="mt-2">
+                  <div>
+                    Path{" "}
+                    {steps.map((step) => step.previousDecision).join(" -> ")}
+                  </div>
                   <table className="border-separate border-spacing-0 w-full sm:text-sm xl:text-sm 2xl:text-sm block overflow-x-scroll sm:overflow-y-scroll default-scroll p-2">
                     <thead
                       className="border border-terminal-green sticky top-0 bg-terminal-black uppercase"
@@ -434,16 +482,13 @@ const EncounterTable = () => {
                     >
                       <tr className="border border-terminal-green">
                         <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
-                          XP (lvl)
+                          XP
+                        </th>
+                        <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
+                          Type
                         </th>
                         <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
                           Encounter
-                        </th>
-                        <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
-                          Tier
-                        </th>
-                        <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
-                          Lvl
                         </th>
                         <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
                           HP
@@ -454,20 +499,23 @@ const EncounterTable = () => {
                         <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
                           Location
                         </th>
-                        <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
+                        <th className="relative py-2 px-1 border-b border-terminal-green">
                           Avoid
+                        </th>
+                        <th className="relative py-2 px-1 border-b border-terminal-green">
+                          Tip
                         </th>
                         <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
                           Crit
                         </th>
                         <th className="py-2 px-1 border-b border-terminal-green">
-                          Next XP (Lvl)
+                          Next (Lvl)
                         </th>
                         <th className="py-2 px-1 border-b border-terminal-green">
                           Ambush
                         </th>
                         <th className="py-2 px-1 border-b border-terminal-green">
-                          Gold
+                          Gold after
                         </th>
                         <th className="py-2 px-1 border-b border-terminal-green">
                           Health after
@@ -479,12 +527,38 @@ const EncounterTable = () => {
                         React.Children.toArray(
                           steps.map(({ encounter, adventurer }, index) => {
                             if (!encounter && adventurer.health! <= 0) {
-                              return <tr>Death</tr>;
+                              return (
+                                <tr>
+                                  <td>Death</td>
+                                </tr>
+                              );
                             }
                             const nextAdventurerState =
                               steps[index + 1]?.adventurer || adventurer;
                             if (!encounter) {
-                              return <tr>Level up</tr>;
+                              let levelUps =
+                                calculateLevel(adventurer.xp) - startingLevel;
+                              console.log(adventurer.xp);
+                              console.log(levelUps);
+                              return (
+                                <tr>
+                                  <td aria-colspan={12}>
+                                    <span className="flex flex-row gap-1 justify-center">
+                                      {"Level Up!"}
+                                      <span className="text-terminal-yellow flex">
+                                        {Array.from({ length: levelUps }).map(
+                                          (_, index) => (
+                                            <DownArrowIcon
+                                              key={index}
+                                              className="h-4 transform rotate-180"
+                                            />
+                                          )
+                                        )}
+                                      </span>
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
                             }
                             let [special2, special3] =
                               encounter.specialName?.split(" ") || ["no", "no"];
@@ -510,9 +584,7 @@ const EncounterTable = () => {
                             return (
                               <tr className="">
                                 <td className="py-2 border-b border-terminal-green">
-                                  <span className="flex">
-                                    {adventurer.xp}. ({adventurer.level!})
-                                  </span>
+                                  <span className="flex">{encounter.xp}</span>
                                 </td>
                                 <td
                                   className={`py-2 border-b border-terminal-green tooltip flex flex-row gap-1 ${
@@ -527,7 +599,7 @@ const EncounterTable = () => {
                                     {encounter.encounter}
                                   </span>
                                   {encounter.encounter === "Beast" &&
-                                    adventurer.level! >= 19 && (
+                                    encounter.level >= 19 && (
                                       <span className="tooltiptext bottom">
                                         {encounter.specialName}
                                       </span>
@@ -535,36 +607,42 @@ const EncounterTable = () => {
                                 </td>
                                 <td className="py-2 border-b border-terminal-green">
                                   <span className="flex justify-center">
-                                    {encounter.encounter !== "Discovery" &&
-                                      encounter.tier}
+                                    {encounter.encounter !== "Discovery" && (
+                                      <div className="relative flex flex-row gap-1 items-center justify-center w-full">
+                                        <span className="text-xs">PWR</span>
+                                        <span>{encounter.power}</span>
+                                        <span className="absolute bottom-[-10px] text-terminal-yellow text-xs">
+                                          T{encounter.tier} L{encounter.level}
+                                        </span>
+                                      </div>
+                                    )}
                                     {encounter.type === "Health" && (
                                       <div className="flex items-center">
                                         {" "}
-                                        {encounter.tier}{" "}
                                         <HeartVitalityIcon className="h-3 pl-0.5" />
+                                        {encounter.tier}{" "}
                                       </div>
                                     )}
                                     {encounter.type === "Gold" && (
                                       <div className="flex items-center">
                                         {" "}
-                                        {encounter.tier}{" "}
                                         <CoinIcon className="pl-0.5 mt-0.5 self-center h-4 fill-current text-terminal-yellow" />
+                                        {encounter.tier}{" "}
                                       </div>
                                     )}
                                     {encounter.type === "Loot" && (
                                       <div className="flex items-center">
                                         {" "}
-                                        {
-                                          gameData.ITEMS[encounter.tier as any]
-                                        }{" "}
+                                        {gameData.ITEMS[encounter.tier]}{" "}
                                         <LootIcon
                                           type={
                                             gameData.ITEM_SLOTS[
                                               gameData.ITEMS[
-                                                encounter.tier as any
+                                                encounter.tier
                                               ].replace(/\s+/g, "")
                                             ]
                                           }
+                                          size={"w-4"}
                                           className="pl-0.5 mt-0.5 self-center h-4 fill-current text-terminal-yellow"
                                         />
                                       </div>
@@ -573,37 +651,70 @@ const EncounterTable = () => {
                                 </td>
                                 <td className="py-2 border-b border-terminal-green">
                                   <span className="flex justify-center">
-                                    {encounter.level}
-                                  </span>
-                                </td>
-                                <td className="py-2 border-b border-terminal-green">
-                                  <span className="flex justify-center">
                                     {encounter.health}
                                   </span>
                                 </td>
                                 <td className="py-2 border-b border-terminal-green">
-                                  <span className="flex justify-center gap-1 items-center">
-                                    {encounter.type === "Blade" && (
-                                      <BladeIcon className="h-4" />
-                                    )}
-                                    {encounter.type === "Bludgeon" && (
-                                      <BludgeonIcon className="h-4" />
-                                    )}
-                                    {encounter.type === "Magic" && (
-                                      <MagicIcon className="h-4" />
-                                    )}
-
+                                  <span className="relative flex justify-center gap-1 items-center uppercase">
                                     {encounter.encounter === "Beast" && (
+                                      <span
+                                        className="absolute top-[-8px] right-[-5px] w-3 h-3 cursor-pointer"
+                                        onMouseEnter={() =>
+                                          setHoveredBeast(index)
+                                        }
+                                        onMouseLeave={() =>
+                                          setHoveredBeast(null)
+                                        }
+                                      >
+                                        <InfoIcon />
+                                        {hoveredBeast === index && (
+                                          <span className="absolute flex flex-row items-center gap-1 p-2 border border-terminal-green bg-terminal-black">
+                                            {encounter.type === "Blade" && (
+                                              <BladeIcon className="h-4" />
+                                            )}
+                                            {encounter.type === "Bludgeon" && (
+                                              <BludgeonIcon className="h-4" />
+                                            )}
+                                            {encounter.type === "Magic" && (
+                                              <MagicIcon className="h-4" />
+                                            )}
+
+                                            {encounter.encounter ===
+                                              "Beast" && (
+                                              <>
+                                                <span>/</span>
+                                                {encounter.type === "Blade" && (
+                                                  <HideIcon className="h-4" />
+                                                )}
+                                                {encounter.type ===
+                                                  "Bludgeon" && (
+                                                  <MetalIcon className="h-4" />
+                                                )}
+                                                {encounter.type === "Magic" && (
+                                                  <ClothIcon className="h-4" />
+                                                )}
+                                              </>
+                                            )}
+                                          </span>
+                                        )}
+                                      </span>
+                                    )}
+                                    {encounter.encounter === "Beast" ? (
+                                      (encounter.type === "Blade" &&
+                                        "Hunter") ||
+                                      (encounter.type === "Bludgeon" &&
+                                        "Brute") ||
+                                      (encounter.type === "Magic" && "Magical")
+                                    ) : (
                                       <>
-                                        <span>/</span>
                                         {encounter.type === "Blade" && (
-                                          <HideIcon className="h-4" />
+                                          <BladeIcon className="h-4" />
                                         )}
                                         {encounter.type === "Bludgeon" && (
-                                          <MetalIcon className="h-4" />
+                                          <BludgeonIcon className="h-4" />
                                         )}
                                         {encounter.type === "Magic" && (
-                                          <ClothIcon className="h-4" />
+                                          <MagicIcon className="h-4" />
                                         )}
                                       </>
                                     )}
@@ -615,20 +726,28 @@ const EncounterTable = () => {
                                   </span>
                                 </td>
                                 <td className="py-2 border-b border-terminal-green">
-                                  <span className="flex items-center gap-1">
-                                    <span className="uppercase">
-                                      {encounter.dodgeRoll &&
-                                      (encounter.encounter === "Beast"
-                                        ? adventurer?.wisdom!
-                                        : adventurer?.intelligence!) >=
-                                        encounter.dodgeRoll
-                                        ? "Yes"
-                                        : "No"}
-                                    </span>
-                                    <span className="flex justify-center">
-                                      {encounter.dodgeRoll &&
-                                        `(${encounter.dodgeRoll})`}
-                                    </span>
+                                  <span className="flex justify-center uppercase">
+                                    {encounter.dodgeRoll &&
+                                    (encounter.encounter === "Beast"
+                                      ? adventurer?.wisdom!
+                                      : adventurer?.intelligence!) >=
+                                      encounter.dodgeRoll
+                                      ? "Yes"
+                                      : "No"}
+                                  </span>
+                                </td>
+                                <td className="py-2 border-b border-terminal-green">
+                                  <span className="flex gap-1 justify-center uppercase text-terminal-yellow">
+                                    {encounter.dodgeRoll && (
+                                      <>
+                                        <span>
+                                          {encounter.encounter === "Beast"
+                                            ? "WIS"
+                                            : "INT"}
+                                        </span>
+                                        <span>{encounter.dodgeRoll}</span>
+                                      </>
+                                    )}
                                   </span>
                                 </td>
                                 <td
@@ -675,8 +794,13 @@ const EncounterTable = () => {
                                     )}
                                 </td>
                                 <td className="py-2 border-b border-terminal-green">
-                                  <span className="flex justify-center">
-                                    {nextAdventurerState.gold}
+                                  <span className="flex justify-center uppercase">
+                                    {encounter.encounter === "Beast" && (
+                                      <span className="flex flex-row items-center text-terminal-yellow">
+                                        <CoinIcon className="h-4 fill-current text-terminal-yellow" />
+                                        {nextAdventurerState.gold}
+                                      </span>
+                                    )}
                                   </span>
                                 </td>
                                 <td className="py-2 border-b border-terminal-green">
@@ -690,14 +814,16 @@ const EncounterTable = () => {
                         )
                       ) : (
                         <tr className="flex items-center h-10 absolute">
-                          <span className="p-4">
-                            Waiting for new entropy...
-                          </span>
+                          <td aria-colspan={12}>
+                            <span className="p-4">
+                              Waiting for new entropy...
+                            </span>
+                          </td>
                         </tr>
                       )}
                     </tbody>
                   </table>
-                </React.Fragment>
+                </div>
               ))}
           </div>
         </div>

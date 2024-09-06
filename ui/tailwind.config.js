@@ -95,6 +95,18 @@ module.exports = {
             "background-color": "rgba(0, 0, 0, 1)",
             "border-radius": "0px",
           },
+          ".no-scrollbar": {
+            /* IE and Edge */
+            "-ms-overflow-style": "none",
+
+            /* Firefox */
+            "scrollbar-width": "none",
+
+            /* Safari and Chrome */
+            "&::-webkit-scrollbar": {
+              display: "none",
+            },
+          },
         },
       };
       addUtilities(newUtilities);
