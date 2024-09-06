@@ -283,7 +283,7 @@ const processObstacleEncounter = (
     obstacleState.xp,
     adventurerEntropy,
     items,
-    hasBeast
+    false
   );
   const obstacleNode: TreeNode = {
     flee: undefined,
@@ -344,7 +344,7 @@ export const processBeastEncounterCombat = (
     battleState.xp,
     adventurerEntropy,
     items,
-    hasBeast
+    false
   );
 
   const fightNode: TreeNode = {
@@ -390,6 +390,7 @@ export const processBeastEncounterFlee = (
   fleeState.health = fleeResult.healthLeft;
   fleeState.xp = (fleeState.xp || 0) + 1;
   fleeState.level = calculateLevel(fleeState.xp);
+  fleeState.gold = currentAdventurer.gold;
 
   const nextEncounter = getNextEncounter(
     fleeState.xp,
@@ -432,12 +433,13 @@ const processDiscoveryEncounter = (
 
   discoveryState.xp = currentEncounter.nextXp;
   discoveryState.level = calculateLevel(discoveryState.xp);
+  discoveryState.gold = discoveryState.gold || currentAdventurer.gold;
 
   const nextEncounter = getNextEncounter(
     discoveryState.xp,
     adventurerEntropy,
     items,
-    hasBeast
+    false
   );
   const discoveryNode: TreeNode = {
     flee: undefined,

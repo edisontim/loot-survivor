@@ -539,8 +539,7 @@ const EncounterTable = () => {
                               let levelUps =
                                 calculateLevel(adventurer.xp || 4) -
                                 (startingLevel || 1);
-                              console.log(adventurer.xp);
-                              console.log(levelUps);
+
                               return (
                                 <tr>
                                   <td aria-colspan={12}>
@@ -800,12 +799,12 @@ const EncounterTable = () => {
                                 </td>
                                 <td className="py-2 border-b border-terminal-green">
                                   <span className="flex justify-center uppercase">
-                                    {encounter.encounter === "Beast" && (
+                                    {
                                       <span className="flex flex-row items-center text-terminal-yellow">
                                         <CoinIcon className="h-4 fill-current text-terminal-yellow" />
                                         {nextAdventurerState.gold}
                                       </span>
-                                    )}
+                                    }
                                   </span>
                                 </td>
                                 <td className="py-2 border-b border-terminal-green">
