@@ -21,7 +21,7 @@ const Intro = () => {
   if (process.env.NEXT_PUBLIC_NETWORK === "development") {
     network = "sepolia";
   } else {
-    network = "sepolia";
+    network = process.env.NEXT_PUBLIC_NETWORK!;
   }
 
   return (
