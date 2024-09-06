@@ -145,7 +145,6 @@ const recurseTree = (
 
   const level = BigInt(Math.floor(Math.sqrt(xp)));
   if (level > initialLevel) {
-	console.log("level > initialLevel")
     tree.fight = undefined;
     tree.flee = undefined;
     tree.explore = undefined;
@@ -367,7 +366,10 @@ export const processBeastEncounterFlee = (
   hasBeast: boolean
 ) => {
   const fleeState = structuredClone(currentAdventurer);
-  if (!hasBeast && currentEncounter.dodgeRoll! > fleeState.wisdom!) {
+  if (
+    !hasBeast &&
+    currentEncounter.dodgeRoll! > Number(currentAdventurer.wisdom)
+  ) {
     fleeState.health = fleeState.health! - currentEncounter.damage!;
   }
 
@@ -393,7 +395,7 @@ export const processBeastEncounterFlee = (
     fleeState.xp,
     adventurerEntropy,
     items,
-    hasBeast
+    false
   );
   const fleeNode: TreeNode = {
     flee: undefined,
