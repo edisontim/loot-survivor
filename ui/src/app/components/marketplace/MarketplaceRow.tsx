@@ -198,6 +198,33 @@ const MarketplaceRow = ({
           <EfficacyDisplay size="w-5" className="h-5 sm:w-8" type={type} />
         </div>
       </td>
+
+      <td className="text-center">
+        {item.item === "Bronze Ring" && `No Special Effect`}
+        {item.item === "Silver Ring" && `+1 Luck | +20 Luck GR20`}
+        {item.item === "Gold Ring" && "3% Beast Gold"}
+        {item.item === "Platinum Ring" && "3% Name Match Dmg"}
+        {item.item === "Titanium Ring" && "3% Crit Dmg"}
+
+        {item.item === "Pendant" && (
+          <div className="flex flex-row items-center justify-center gap-2">
+            <p>3% Hide</p>
+            <EfficacyDisplay size="w-5" className="h-5 sm:w-8" type={"Hide"} />
+          </div>
+        )}
+        {item.item === "Necklace" && (
+          <div className="flex flex-row items-center justify-center gap-2">
+            <p>3% Metal</p>
+            <EfficacyDisplay size="w-5" className="h-5 sm:w-8" type={"Metal"} />
+          </div>
+        )}
+        {item.item === "Amulet" && (
+          <div className="flex flex-row items-center justify-center gap-2">
+            <p>3% Cloth</p>
+            <EfficacyDisplay size="w-5" className="h-5 sm:w-8" type={"Cloth"} />
+          </div>
+        )}
+      </td>
       <td className="text-center">
         <div className="flex flex-row items-center justify-center">
           <CoinIcon className="w-4 h-4 sm:w-8 sm:h-8 fill-current text-terminal-yellow" />
