@@ -225,6 +225,12 @@ export interface ItemPurchase {
   equip: string;
 }
 
+export interface ItemPurchaseObject {
+  tier: number;
+  type: string;
+  slot: string;
+}
+
 export interface UpgradeStats {
   [key: string]: number;
   Strength: number;
