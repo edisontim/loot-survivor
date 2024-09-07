@@ -1,9 +1,3 @@
-import LootIcon from "@/app/components/icons/LootIcon";
-import React, { useState } from "react";
-import { Step } from "@/app/lib/utils/processFutures";
-import { calculateLevel } from "@/app/lib/utils";
-import { AdventurerClass } from "@/app/lib/classes";
-import { Item } from "@/app/types";
 import {
   BladeIcon,
   BludgeonIcon,
@@ -16,7 +10,13 @@ import {
   MagicIcon,
   MetalIcon,
 } from "@/app/components/icons/Icons";
+import LootIcon from "@/app/components/icons/LootIcon";
+import { AdventurerClass } from "@/app/lib/classes";
 import { GameData } from "@/app/lib/data/GameData";
+import { calculateLevel } from "@/app/lib/utils";
+import { Step } from "@/app/lib/utils/processFutures";
+import { Item } from "@/app/types";
+import React, { useState } from "react";
 
 type PathProps = {
   adventurerEntropy: bigint;

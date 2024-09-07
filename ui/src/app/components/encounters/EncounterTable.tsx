@@ -14,6 +14,7 @@ import LootIcon from "@/app/components/icons/LootIcon";
 import useAdventurerStore from "@/app/hooks/useAdventurerStore";
 import { useQueriesStore } from "@/app/hooks/useQueryStore";
 import useUIStore from "@/app/hooks/useUIStore";
+import { AdventurerClass } from "@/app/lib/classes";
 import { vitalityIncrease } from "@/app/lib/constants";
 import { GameData } from "@/app/lib/data/GameData";
 import { calculateLevel, getItemData, getItemPrice } from "@/app/lib/utils";
@@ -22,10 +23,9 @@ import {
   getOutcomesWithPath,
   listAllEncounters,
 } from "@/app/lib/utils/processFutures";
+import { Item } from "@/app/types";
 import React, { useMemo, useState } from "react";
 import Paths from "./Paths";
-import { AdventurerClass } from "@/app/lib/classes";
-import { Item } from "@/app/types";
 
 const EncounterTable = () => {
   const adventurer = useAdventurerStore((state) => state.adventurer);
