@@ -1,4 +1,4 @@
-import { Adventurer } from "@/app/types";
+import { Adventurer, Item } from "@/app/types";
 import * as starknet from "@scure/starknet";
 import { calculateLevel, formatItemName, getKeyFromValue } from ".";
 import { vitalityIncrease } from "../constants";
@@ -45,16 +45,6 @@ interface Encounter {
   xp: number;
 }
 
-interface Item {
-  slot: string;
-  item?: string;
-  type?: string;
-  xp?: number;
-  level?: number;
-  tier?: number;
-  special2?: string;
-  special3?: string;
-}
 
 interface CombatResult {
   totalDamage: number;

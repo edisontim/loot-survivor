@@ -11,33 +11,95 @@ import {
   MetalIcon,
 } from "@/app/components/icons/Icons";
 import LootIcon from "@/app/components/icons/LootIcon";
-import { AdventurerClass } from "@/app/lib/classes";
+import useAdventurerStore from "@/app/hooks/useAdventurerStore";
+import { useQueriesStore } from "@/app/hooks/useQueryStore";
+import useUIStore from "@/app/hooks/useUIStore";
 import { GameData } from "@/app/lib/data/GameData";
-import { calculateLevel } from "@/app/lib/utils";
+import { calculateLevel, getItemData } from "@/app/lib/utils";
 import { Step } from "@/app/lib/utils/processFutures";
 import { Item } from "@/app/types";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
+import {
+  getItems,
+  getPaths,
+  getPurchaseItemsObjects,
+  getUpdatedAdventurer,
+} from "./utils";
 
-type PathProps = {
-  adventurerEntropy: bigint;
-  updatedAdventurer: AdventurerClass | null;
-  outcomesWithPath: Step[][];
-  armoritems: Item[];
-  weaponItems: Item[];
-  startingLevel: number | undefined;
-};
+const Paths = () => {
+  const adventurer = useAdventurerStore((state) => state.adventurer);
+  const adventurerEntropy = useUIStore((state) => state.adventurerEntropy);
+  const hasBeast = useAdventurerStore((state) => state.computed.hasBeast);
 
-const Paths = ({
-  adventurerEntropy,
-  updatedAdventurer,
-  outcomesWithPath,
-  armoritems,
-  weaponItems,
-  startingLevel,
-}: PathProps) => {
+  const upgrades = useUIStore((state) => state.upgrades);
+  const potionAmount = useUIStore((state) => state.potionAmount);
+  const purchaseItems = useUIStore((state) => state.purchaseItems);
+
   const [hoveredBeast, setHoveredBeast] = useState<number | null>(null);
 
+  const { data } = useQueriesStore();
+
   let gameData = new GameData();
+
+  let armoritems: Item[] =
+    data.itemsByAdventurerQuery?.items
+      .map((item) => ({ ...item, ...getItemData(item.item ?? "") }))
+      .filter((item) => {
+        return !["Weapon", "Ring", "Neck"].includes(item.slot!);
+      }) || [];
+
+  let weaponItems: Item[] =
+    data.itemsByAdventurerQuery?.items
+      .map((item) => ({ ...item, ...getItemData(item.item ?? "") }))
+      .filter((item) => {
+        return item.slot! === "Weapon";
+      }) || [];
+
+  const purchaseItemsObjects = useMemo(
+    () => getPurchaseItemsObjects(purchaseItems, gameData),
+    [purchaseItems]
+  );
+
+  const updatedAdventurer = useMemo(
+    () =>
+      getUpdatedAdventurer(
+        adventurer,
+        upgrades,
+        potionAmount,
+        purchaseItemsObjects
+      ),
+    [
+      adventurer,
+      upgrades.Charisma,
+      upgrades.Intelligence,
+      upgrades.Wisdom,
+      upgrades.Strength,
+      upgrades.Dexterity,
+      upgrades.Vitality,
+      potionAmount,
+      purchaseItemsObjects,
+    ]
+  );
+
+  const items = useMemo(
+    () => getItems(purchaseItems, data, gameData),
+    [data.itemsByAdventurerQuery?.items, purchaseItemsObjects]
+  );
+
+  const outcomesWithPath = useMemo(
+    () =>
+      getPaths(
+        updatedAdventurer,
+        adventurerEntropy,
+        items,
+        gameData,
+        data,
+        hasBeast
+      ),
+    [updatedAdventurer, updatedAdventurer?.xp, adventurerEntropy, items]
+  );
+
+  const startingLevel = adventurer?.level;
 
   return (
     <>

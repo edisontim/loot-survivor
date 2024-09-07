@@ -14,17 +14,12 @@ import LootIcon from "@/app/components/icons/LootIcon";
 import useAdventurerStore from "@/app/hooks/useAdventurerStore";
 import { useQueriesStore } from "@/app/hooks/useQueryStore";
 import useUIStore from "@/app/hooks/useUIStore";
-import { AdventurerClass } from "@/app/lib/classes";
-import { vitalityIncrease } from "@/app/lib/constants";
 import { GameData } from "@/app/lib/data/GameData";
-import { calculateLevel, getItemData, getItemPrice } from "@/app/lib/utils";
-import {
-  getDecisionTree,
-  getOutcomesWithPath,
-  listAllEncounters,
-} from "@/app/lib/utils/processFutures";
+import { calculateLevel, getItemData } from "@/app/lib/utils";
+import { listAllEncounters } from "@/app/lib/utils/processFutures";
 import { Item } from "@/app/types";
 import React, { useMemo, useState } from "react";
+import { getPurchaseItemsObjects, getUpdatedAdventurer } from "./utils";
 import Paths from "./Paths";
 
 const EncounterTable = () => {
@@ -32,23 +27,33 @@ const EncounterTable = () => {
   const adventurerEntropy = useUIStore((state) => state.adventurerEntropy);
   const hasBeast = useAdventurerStore((state) => state.computed.hasBeast);
 
-  const formattedAdventurerEntropy = BigInt(adventurerEntropy);
-  const purchaseItems = useUIStore((state) => state.purchaseItems);
-  const potionAmount = useUIStore((state) => state.potionAmount);
-  const upgrades = useUIStore((state) => state.upgrades);
-
   const [hoveredBeast, setHoveredBeast] = useState<number | null>(null);
+
+  const formattedAdventurerEntropy = BigInt(adventurerEntropy);
 
   const { data } = useQueriesStore();
 
   let gameData = new GameData();
 
-  const purchaseItemsObjects = purchaseItems
-    .filter((item) => item.equip)
-    .map((item) => {
-      const itemName = gameData.ITEMS[Number(item.item)];
-      return getItemData(itemName);
-    });
+  const upgrades = useUIStore((state) => state.upgrades);
+  const potionAmount = useUIStore((state) => state.potionAmount);
+  const purchaseItems = useUIStore((state) => state.purchaseItems);
+
+  const purchaseItemsObjects = useMemo(
+    () => getPurchaseItemsObjects(purchaseItems, gameData),
+    [purchaseItems]
+  );
+
+  const updatedAdventurer = useMemo(
+    () =>
+      getUpdatedAdventurer(
+        adventurer,
+        upgrades,
+        potionAmount,
+        purchaseItemsObjects
+      ),
+    [adventurer, upgrades, potionAmount, purchaseItemsObjects]
+  );
 
   let armoritems: Item[] =
     data.itemsByAdventurerQuery?.items
@@ -64,102 +69,6 @@ const EncounterTable = () => {
         return item.slot! === "Weapon";
       }) || [];
 
-  const items = useMemo(() => {
-    let equippedItems =
-      data.itemsByAdventurerQuery?.items
-        .filter((item) => item.equipped)
-        .map((item) => ({
-          item: item.item,
-          ...getItemData(item.item ?? ""),
-          special2: item.special2,
-          special3: item.special3,
-          xp: Math.max(1, item.xp!),
-        })) || [];
-
-    let updatedItems = equippedItems.map((item: any) => {
-      const purchaseItem = purchaseItemsObjects.find(
-        (purchaseItem) => purchaseItem.slot === item.slot
-      );
-      if (purchaseItem) {
-        return {
-          ...purchaseItem,
-          special2: undefined,
-          special3: undefined,
-          xp: 1, // Default XP for new items
-        };
-      }
-      return item;
-    });
-
-    // Add any new items from purchaseItemsObjects that weren't replacements
-    purchaseItemsObjects.forEach((purchaseItem) => {
-      if (!updatedItems.some((item: any) => item.slot === purchaseItem.slot)) {
-        updatedItems.push({
-          ...purchaseItem,
-          special2: undefined,
-          special3: undefined,
-          xp: 1, // Default XP for new items
-        });
-      }
-    });
-
-    return updatedItems;
-  }, [data.itemsByAdventurerQuery?.items, purchaseItemsObjects]);
-
-  const updatedAdventurer: AdventurerClass | null = useMemo(() => {
-    if (!adventurer) return null;
-
-    let newAdventurer: AdventurerClass = { ...adventurer };
-
-    if (upgrades.Strength > 0) {
-      newAdventurer.strength! += upgrades.Strength;
-    }
-    if (upgrades.Dexterity > 0) {
-      newAdventurer.dexterity! += upgrades.Dexterity;
-    }
-    if (upgrades.Vitality > 0) {
-      newAdventurer.vitality =
-        Number(newAdventurer.vitality) + upgrades.Vitality;
-      newAdventurer.health =
-        newAdventurer.health! + upgrades.Vitality! * vitalityIncrease;
-    }
-    if (upgrades.Intelligence > 0) {
-      newAdventurer.intelligence! += upgrades.Intelligence;
-    }
-    if (upgrades.Wisdom > 0) {
-      newAdventurer.wisdom! += upgrades.Wisdom;
-    }
-    if (upgrades.Charisma > 0) {
-      newAdventurer.charisma! += upgrades.Charisma;
-    }
-
-    // Apply purchased potions
-    if (potionAmount > 0) {
-      newAdventurer.health = Math.min(
-        newAdventurer.health! + potionAmount * 10,
-        100 + newAdventurer.vitality! * vitalityIncrease
-      );
-    }
-
-    const totalCost = purchaseItemsObjects.reduce((acc, item) => {
-      return acc + getItemPrice(item.tier, newAdventurer?.charisma!);
-    }, 0);
-
-    newAdventurer.gold = adventurer?.gold! - totalCost;
-
-    return newAdventurer;
-  }, [
-    adventurer,
-    potionAmount,
-    upgrades.Charisma,
-    upgrades.Intelligence,
-    upgrades.Strength,
-    upgrades.Wisdom,
-    upgrades.Vitality,
-    upgrades.Dexterity,
-    purchaseItemsObjects,
-  ]);
-
   const encounters = useMemo(
     () =>
       listAllEncounters(
@@ -170,21 +79,6 @@ const EncounterTable = () => {
       ),
     [updatedAdventurer?.xp, formattedAdventurerEntropy]
   );
-
-  const outcomesWithPath = useMemo(() => {
-    if (!updatedAdventurer || !items) return [];
-    const decisionTree = getDecisionTree(
-      updatedAdventurer!,
-      items,
-      formattedAdventurerEntropy,
-      hasBeast,
-      updatedAdventurer?.level!
-    );
-    return getOutcomesWithPath(decisionTree).sort(
-      (a, b) =>
-        b[b.length - 1].adventurer.health! - a[a.length - 1].adventurer.health!
-    );
-  }, [updatedAdventurer?.xp, formattedAdventurerEntropy, items]);
 
   return (
     <div className="fixed z-50">
@@ -464,15 +358,9 @@ const EncounterTable = () => {
                 )}
               </tbody>
             </table>
+
+            <Paths />
           </div>
-          <Paths
-            adventurerEntropy={adventurerEntropy}
-            updatedAdventurer={updatedAdventurer}
-            outcomesWithPath={outcomesWithPath}
-            armoritems={armoritems}
-            weaponItems={weaponItems}
-            startingLevel={adventurer?.level}
-          />
         </div>
       </div>
     </div>
