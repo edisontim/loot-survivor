@@ -310,24 +310,23 @@ const EncounterTable = () => {
                                 {encounter.tier}{" "}
                               </div>
                             )}
-                            {encounter.type === "Loot" && (
-                              <div className="flex items-center">
-                                {" "}
-                                {gameData.ITEMS[encounter.tier]}{" "}
-                                <LootIcon
-                                  type={
-                                    gameData.ITEM_SLOTS[
-                                      gameData.ITEMS[encounter.tier].replace(
-                                        /\s+/g,
-                                        ""
-                                      )
-                                    ]
-                                  }
-                                  size={"w-4"}
-                                  className="pl-0.5 mt-0.5 self-center h-4 fill-current text-terminal-yellow"
-                                />
-                              </div>
-                            )}
+                            {encounter.type === "Loot"
+                              ? (() => {
+                                  const tier = gameData.ITEMS[
+                                    encounter.tier
+                                  ].replace(/\s+/g, "");
+                                  return (
+                                    <div className="flex items-center">
+                                      {` T${gameData.ITEM_TIERS[tier]}`}
+                                      <LootIcon
+                                        type={gameData.ITEM_SLOTS[tier]}
+                                        size={"w-4"}
+                                        className="pl-0.5 mt-0.5 self-center h-4 fill-current text-terminal-yellow"
+                                      />
+                                    </div>
+                                  );
+                                })()
+                              : null}
                           </span>
                         </td>
                         <td className="py-2 border-b border-terminal-green">
