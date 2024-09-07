@@ -356,228 +356,227 @@ const EncounterTable = () => {
                                       <MagicIcon className="h-4" />
                                     )}
 
-                                      {encounter.encounter === "Beast" && (
-                                        <>
-                                          <span>/</span>
-                                          {encounter.type === "Blade" && (
-                                            <HideIcon className="h-4" />
-                                          )}
-                                          {encounter.type === "Bludgeon" && (
-                                            <MetalIcon className="h-4" />
-                                          )}
-                                          {encounter.type === "Magic" && (
-                                            <ClothIcon className="h-4" />
-                                          )}
-                                        </>
-                                      )}
-                                    </span>
-                                  )}
-                                </span>
-                              )}
-                              {encounter.encounter === "Beast" ? (
-                                (encounter.type === "Blade" && "Hunter") ||
-                                (encounter.type === "Bludgeon" && "Brute") ||
-                                (encounter.type === "Magic" && "Magical")
-                              ) : (
-                                <>
-                                  {encounter.type === "Blade" && (
-                                    <BladeIcon className="h-4" />
-                                  )}
-                                  {encounter.type === "Bludgeon" && (
-                                    <BludgeonIcon className="h-4" />
-                                  )}
-                                  {encounter.type === "Magic" && (
-                                    <MagicIcon className="h-4" />
-                                  )}
-                                </>
-                              )}
-                            </span>
-                          </td>
-                          <td className="py-2 border-b border-terminal-green">
-                            <span className="flex justify-center uppercase">
-                              {encounter.location}
-                            </span>
-                          </td>
-                          <td className="py-2 border-b border-terminal-green">
-                            <span className="flex justify-center uppercase">
-                              {encounter.dodgeRoll &&
-                              (encounter.encounter === "Beast"
-                                ? adventurer?.wisdom!
-                                : adventurer?.intelligence!) >=
-                                encounter.dodgeRoll
-                                ? "Yes"
-                                : "No"}
-                            </span>
-                          </td>
-                          <td className="py-2 border-b border-terminal-green">
-                            <span className="flex gap-1 justify-center uppercase text-terminal-yellow">
-                              {encounter.dodgeRoll && (
-                                <>
-                                  <span>
-                                    {encounter.encounter === "Beast"
-                                      ? "WIS"
-                                      : "INT"}
+                                    {encounter.encounter === "Beast" && (
+                                      <>
+                                        <span>/</span>
+                                        {encounter.type === "Blade" && (
+                                          <HideIcon className="h-4" />
+                                        )}
+                                        {encounter.type === "Bludgeon" && (
+                                          <MetalIcon className="h-4" />
+                                        )}
+                                        {encounter.type === "Magic" && (
+                                          <ClothIcon className="h-4" />
+                                        )}
+                                      </>
+                                    )}
                                   </span>
-                                  <span>{encounter.dodgeRoll}</span>
-                                </>
-                              )}
-                            </span>
-                          </td>
-                          <td className="py-2 border-b border-terminal-green">
-                            <span className="flex justify-center uppercase">
-                              {encounter.encounter === "Beast" && (
-                                <span className="flex flex-row items-center text-terminal-yellow">
-                                  <CoinIcon className="h-4 fill-current text-terminal-yellow" />
-                                  {encounter.gold}
-                                </span>
-                              )}
-                            </span>
-                          </td>
-                          <td
-                            className={`py-2 border-b border-terminal-green uppercase ${
-                              encounter.isCritical ? "text-red-500" : ""
-                            }`}
-                          >
-                            {encounter.isCritical && (
-                              <span className="flex justify-center">
-                                {encounter.isCritical ? "Yes" : "No"}
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2 border-b border-terminal-green">
-                            <span className="flex flex-row gap-1 justify-center">
-                              {encounter.nextXp}{" "}
-                              <span className="text-terminal-yellow flex">
-                                {Array.from({ length: levelUps }).map(
-                                  (_, index) => (
-                                    <DownArrowIcon
-                                      key={index}
-                                      className="h-4 transform rotate-180"
-                                    />
-                                  )
                                 )}
                               </span>
+                            )}
+                            {encounter.encounter === "Beast" ? (
+                              (encounter.type === "Blade" && "Hunter") ||
+                              (encounter.type === "Bludgeon" && "Brute") ||
+                              (encounter.type === "Magic" && "Magical")
+                            ) : (
+                              <>
+                                {encounter.type === "Blade" && (
+                                  <BladeIcon className="h-4" />
+                                )}
+                                {encounter.type === "Bludgeon" && (
+                                  <BludgeonIcon className="h-4" />
+                                )}
+                                {encounter.type === "Magic" && (
+                                  <MagicIcon className="h-4" />
+                                )}
+                              </>
+                            )}
+                          </span>
+                        </td>
+                        <td className="py-2 border-b border-terminal-green">
+                          <span className="flex justify-center uppercase">
+                            {encounter.location}
+                          </span>
+                        </td>
+                        <td className="py-2 border-b border-terminal-green">
+                          <span className="flex justify-center uppercase">
+                            {encounter.dodgeRoll &&
+                            (encounter.encounter === "Beast"
+                              ? adventurer?.wisdom!
+                              : adventurer?.intelligence!) >=
+                              encounter.dodgeRoll
+                              ? "Yes"
+                              : "No"}
+                          </span>
+                        </td>
+                        <td className="py-2 border-b border-terminal-green">
+                          <span className="flex gap-1 justify-center uppercase text-terminal-yellow">
+                            {encounter.dodgeRoll && (
+                              <>
+                                <span>
+                                  {encounter.encounter === "Beast"
+                                    ? "WIS"
+                                    : "INT"}
+                                </span>
+                                <span>{encounter.dodgeRoll}</span>
+                              </>
+                            )}
+                          </span>
+                        </td>
+                        <td className="py-2 border-b border-terminal-green">
+                          <span className="flex justify-center uppercase">
+                            {encounter.encounter === "Beast" && (
+                              <span className="flex flex-row items-center text-terminal-yellow">
+                                <CoinIcon className="h-4 fill-current text-terminal-yellow" />
+                                {encounter.gold}
+                              </span>
+                            )}
+                          </span>
+                        </td>
+                        <td
+                          className={`py-2 border-b border-terminal-green uppercase ${
+                            encounter.isCritical ? "text-red-500" : ""
+                          }`}
+                        >
+                          {encounter.isCritical && (
+                            <span className="flex justify-center">
+                              {encounter.isCritical ? "Yes" : "No"}
                             </span>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-            {updatedAdventurer?.entropy &&
-              outcomesWithPath.map((steps: Step[], index: number) => (
-                <div key={index} className="mt-2">
-                  <div>
-                    Path{" "}
-                    {steps.map((step) => step.previousDecision).join(" -> ")}
-                  </div>
-                  <table className="border-separate border-spacing-0 w-full sm:text-sm xl:text-sm 2xl:text-sm block overflow-x-scroll sm:overflow-y-scroll default-scroll p-2">
-                    <thead
-                      className="border border-terminal-green sticky top-0 bg-terminal-black uppercase"
-                      style={{ zIndex: 8 }}
-                    >
-                      <tr className="border border-terminal-green">
-                        <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
-                          XP
-                        </th>
-                        <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
-                          Type
-                        </th>
-                        <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
-                          Encounter
-                        </th>
-                        <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
-                          HP
-                        </th>
-                        <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
-                          Type
-                        </th>
-                        <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
-                          Location
-                        </th>
-                        <th className="relative py-2 px-1 border-b border-terminal-green">
-                          Avoid
-                        </th>
-                        <th className="relative py-2 px-1 border-b border-terminal-green">
-                          Tip
-                        </th>
-                        <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
-                          Crit
-                        </th>
-                        <th className="py-2 px-1 border-b border-terminal-green">
-                          Next (Lvl)
-                        </th>
-                        <th className="py-2 px-1 border-b border-terminal-green">
-                          Ambush
-                        </th>
-                        <th className="py-2 px-1 border-b border-terminal-green">
-                          Gold after
-                        </th>
-                        <th className="py-2 px-1 border-b border-terminal-green">
-                          Health after
-                        </th>
+                          )}
+                        </td>
+                        <td className="py-2 border-b border-terminal-green">
+                          <span className="flex flex-row gap-1 justify-center">
+                            {encounter.nextXp}{" "}
+                            <span className="text-terminal-yellow flex">
+                              {Array.from({ length: levelUps }).map(
+                                (_, index) => (
+                                  <DownArrowIcon
+                                    key={index}
+                                    className="h-4 transform rotate-180"
+                                  />
+                                )
+                              )}
+                            </span>
+                          </span>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {adventurerEntropy ? (
-                        React.Children.toArray(
-                          steps.map(({ encounter, adventurer }, index) => {
-                            if (!encounter && adventurer.health! <= 0) {
-                              return (
-                                <tr>
-                                  <td>Death</td>
-                                </tr>
-                              );
-                            }
-                            const nextAdventurerState =
-                              steps[index + 1]?.adventurer || adventurer;
-                            if (!encounter) {
-                              let levelUps =
-                                calculateLevel(adventurer.xp || 4) -
-                                (startingLevel || 1);
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+          {updatedAdventurer?.entropy &&
+            outcomesWithPath.map((steps: Step[], index: number) => (
+              <div key={index} className="mt-2">
+                <div>
+                  Path {steps.map((step) => step.previousDecision).join(" -> ")}
+                </div>
+                <table className="border-separate border-spacing-0 w-full sm:text-sm xl:text-sm 2xl:text-sm block overflow-x-scroll sm:overflow-y-scroll default-scroll p-2">
+                  <thead
+                    className="border border-terminal-green sticky top-0 bg-terminal-black uppercase"
+                    style={{ zIndex: 8 }}
+                  >
+                    <tr className="border border-terminal-green">
+                      <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
+                        XP
+                      </th>
+                      <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
+                        Type
+                      </th>
+                      <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
+                        Encounter
+                      </th>
+                      <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
+                        HP
+                      </th>
+                      <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
+                        Type
+                      </th>
+                      <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
+                        Location
+                      </th>
+                      <th className="relative py-2 px-1 border-b border-terminal-green">
+                        Avoid
+                      </th>
+                      <th className="relative py-2 px-1 border-b border-terminal-green">
+                        Tip
+                      </th>
+                      <th className="py-2 px-1 sm:pr-3 border-b border-terminal-green">
+                        Crit
+                      </th>
+                      <th className="py-2 px-1 border-b border-terminal-green">
+                        Next (Lvl)
+                      </th>
+                      <th className="py-2 px-1 border-b border-terminal-green">
+                        Ambush
+                      </th>
+                      <th className="py-2 px-1 border-b border-terminal-green">
+                        Gold after
+                      </th>
+                      <th className="py-2 px-1 border-b border-terminal-green">
+                        Health after
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {adventurerEntropy ? (
+                      React.Children.toArray(
+                        steps.map(({ encounter, adventurer }, index) => {
+                          if (!encounter && adventurer.health! <= 0) {
+                            return (
+                              <tr>
+                                <td>Death</td>
+                              </tr>
+                            );
+                          }
+                          const nextAdventurerState =
+                            steps[index + 1]?.adventurer || adventurer;
+                          if (!encounter) {
+                            let levelUps =
+                              calculateLevel(adventurer.xp || 4) -
+                              (startingLevel || 1);
 
-                              return (
-                                <tr>
-                                  <td aria-colspan={12}>
-                                    <span className="flex flex-row gap-1 justify-center">
-                                      {"Level Up!"}
-                                      <span className="text-terminal-yellow flex">
-                                        {Array.from({ length: levelUps }).map(
-                                          (_, index) => (
-                                            <DownArrowIcon
-                                              key={index}
-                                              className="h-4 transform rotate-180"
-                                            />
-                                          )
-                                        )}
-                                      </span>
+                            return (
+                              <tr>
+                                <td aria-colspan={12}>
+                                  <span className="flex flex-row gap-1 justify-center">
+                                    {"Level Up!"}
+                                    <span className="text-terminal-yellow flex">
+                                      {Array.from({ length: levelUps }).map(
+                                        (_, index) => (
+                                          <DownArrowIcon
+                                            key={index}
+                                            className="h-4 transform rotate-180"
+                                          />
+                                        )
+                                      )}
                                     </span>
-                                  </td>
-                                </tr>
-                              );
-                            }
-                            let [special2, special3] =
-                              encounter.specialName?.split(" ") || ["no", "no"];
-                            let nameMatch =
-                              encounter.encounter === "Beast" &&
-                              encounter.level! >= 19
-                                ? armoritems.find(
-                                    (item) =>
-                                      item.special2 === special2 ||
-                                      item.special3 === special3
-                                  )
-                                : false;
-                            let weaponMatch =
-                              encounter.encounter === "Beast" &&
-                              encounter.level! >= 19
-                                ? weaponItems.find(
-                                    (item) =>
-                                      item.special2 === special2 ||
-                                      item.special3 === special3
-                                  )
-                                : false;
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          }
+                          let [special2, special3] =
+                            encounter.specialName?.split(" ") || ["no", "no"];
+                          let nameMatch =
+                            encounter.encounter === "Beast" &&
+                            encounter.level! >= 19
+                              ? armoritems.find(
+                                  (item) =>
+                                    item.special2 === special2 ||
+                                    item.special3 === special3
+                                )
+                              : false;
+                          let weaponMatch =
+                            encounter.encounter === "Beast" &&
+                            encounter.level! >= 19
+                              ? weaponItems.find(
+                                  (item) =>
+                                    item.special2 === special2 ||
+                                    item.special3 === special3
+                                )
+                              : false;
 
                           return (
                             <tr className="">
@@ -781,49 +780,49 @@ const EncounterTable = () => {
                                     </span>
                                   )}
 
-                                  {encounter.encounter === "Beast" &&
-                                    encounter.dodgeRoll! >
-                                      adventurer?.wisdom! && (
-                                      <span className="flex justify-center">
-                                        -{encounter.damage}hp
-                                      </span>
-                                    )}
-                                </td>
-                                <td className="py-2 border-b border-terminal-green">
-                                  <span className="flex justify-center uppercase">
-                                    {
-                                      <span className="flex flex-row items-center text-terminal-yellow">
-                                        <CoinIcon className="h-4 fill-current text-terminal-yellow" />
-                                        {nextAdventurerState.gold}
-                                      </span>
-                                    }
-                                  </span>
-                                </td>
-                                <td className="py-2 border-b border-terminal-green">
-                                  <span className="flex justify-center">
-                                    {nextAdventurerState?.health}
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )
-                      ) : (
-                        <tr className="flex items-center h-10 absolute">
-                          <td aria-colspan={12}>
-                            <span className="p-4">
-                              Waiting for new entropy...
-                            </span>
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              ))}
-          </div>
+                                {encounter.encounter === "Beast" &&
+                                  encounter.dodgeRoll! >
+                                    adventurer?.wisdom! && (
+                                    <span className="flex justify-center">
+                                      -{encounter.damage}hp
+                                    </span>
+                                  )}
+                              </td>
+                              <td className="py-2 border-b border-terminal-green">
+                                <span className="flex justify-center uppercase">
+                                  {
+                                    <span className="flex flex-row items-center text-terminal-yellow">
+                                      <CoinIcon className="h-4 fill-current text-terminal-yellow" />
+                                      {nextAdventurerState.gold}
+                                    </span>
+                                  }
+                                </span>
+                              </td>
+                              <td className="py-2 border-b border-terminal-green">
+                                <span className="flex justify-center">
+                                  {nextAdventurerState?.health}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )
+                    ) : (
+                      <tr className="flex items-center h-10 absolute">
+                        <td aria-colspan={12}>
+                          <span className="p-4">
+                            Waiting for new entropy...
+                          </span>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            ))}
         </div>
       </div>
+    </div>
   );
 };
 
