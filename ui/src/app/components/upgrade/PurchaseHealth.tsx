@@ -33,7 +33,9 @@ const PurchaseHealth = ({
   const prevAmountRef = useRef<number | undefined>(0);
   const [buttonClicked, setButtonClicked] = useState(false);
 
-  const potionCost = getPotionPrice(adventurer?.level ?? 0, totalCharisma);
+  const adventurerLvl = adventurer?.level ?? 0;
+  const potionCost = getPotionPrice(adventurerLvl, totalCharisma);
+  const potionCostNextLvl = getPotionPrice(adventurerLvl + 1, totalCharisma);
 
   const maxHealth = 100 + (adventurer?.vitality ?? 0) * vitalityIncrease;
 
@@ -89,10 +91,17 @@ const PurchaseHealth = ({
   return (
     <div className="flex flex-col sm:flex-row sm:gap-5 items-center justify-center w-full">
       <span className="flex flex-row gap-5 items-center uppercase">
-        <div className="flex flex-row items-center">
-          <p className="text-lg text-terminal-green">Potion Cost:</p>
-          <CoinIcon className="mt-2 sm:mt-1 w-10 h-10 sm:w-8 sm:h-8 fill-current text-terminal-green" />
-          <p className="text-lg text-terminal-green">{potionCost}</p>
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-row items-center">
+            <p className="text-lg text-terminal-green">Potion Cost:</p>
+            <CoinIcon className="mt-2 sm:mt-1 w-10 h-10 sm:w-8 sm:h-8 fill-current text-terminal-green" />
+            <p className="text-lg text-terminal-green">{potionCost}</p>
+          </div>
+          <div className="flex flex-row items-center">
+            <p className="text-lg text-terminal-green">Potion Cost Next Lvl:</p>
+            <CoinIcon className="mt-2 sm:mt-1 w-10 h-10 sm:w-8 sm:h-8 fill-current text-terminal-green" />
+            <p className="text-lg text-terminal-green">{potionCostNextLvl}</p>
+          </div>
         </div>
         <div className="flex flex-row items-center">
           <p className="text-lg text-terminal-yellow">Total:</p>
