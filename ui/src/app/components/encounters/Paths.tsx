@@ -20,6 +20,7 @@ import { Step } from "@/app/lib/utils/processFutures";
 import { Item } from "@/app/types";
 import React, { useMemo, useState } from "react";
 import {
+  getItems,
   getPaths,
   getPurchaseItemsObjects,
   getUpdatedAdventurer,
@@ -28,6 +29,7 @@ import {
 const Paths = () => {
   const adventurer = useAdventurerStore((state) => state.adventurer);
   const adventurerEntropy = useUIStore((state) => state.adventurerEntropy);
+  const hasBeast = useAdventurerStore((state) => state.computed.hasBeast);
 
   const upgrades = useUIStore((state) => state.upgrades);
   const potionAmount = useUIStore((state) => state.potionAmount);
@@ -79,10 +81,22 @@ const Paths = () => {
     ]
   );
 
-  const outcomesWithPath = getPaths(
-    updatedAdventurer,
-    adventurerEntropy,
-    gameData
+  const items = useMemo(
+    () => getItems(purchaseItems, data, gameData),
+    [data.itemsByAdventurerQuery?.items, purchaseItemsObjects]
+  );
+
+  const outcomesWithPath = useMemo(
+    () =>
+      getPaths(
+        updatedAdventurer,
+        adventurerEntropy,
+        items,
+        gameData,
+        data,
+        hasBeast
+      ),
+    [updatedAdventurer, updatedAdventurer?.xp, adventurerEntropy, items]
   );
 
   const startingLevel = adventurer?.level;
