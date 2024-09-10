@@ -117,3 +117,5 @@ export const collectionData = [
     token: "0x07ae27a31bb6526e3de9cf02f081f6ce0615ac12a6d7b85ee58b8ad7947a2809",
   },
 ];
+
+export const maxGamesPlayable = 1600;

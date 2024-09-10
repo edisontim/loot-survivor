@@ -1,13 +1,19 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/app/components/buttons/Button";
 import { Adventurer } from "@/app/types";
 import Info from "@/app/components/adventurer/Info";
-import { Contract, validateAndParseAddress } from "starknet";
+import {
+  AccountInterface,
+  Contract,
+  validateAndParseAddress,
+  constants,
+} from "starknet";
 import useTransactionCartStore from "@/app/hooks/useTransactionCartStore";
-import { useAccount } from "@starknet-react/core";
+import { useAccount, useProvider } from "@starknet-react/core";
 import useAdventurerStore from "@/app/hooks/useAdventurerStore";
 import { padAddress } from "@/app/lib/utils";
-import { AccountInterface } from "starknet";
+import { StarknetIdNavigator } from "starknetid.js";
+import { CartridgeIcon, StarknetIdIcon } from "../icons/Icons";
 
 export interface AdventurerListCardProps {
   adventurer: Adventurer;
@@ -28,22 +34,75 @@ export const AdventurerListCard = ({
   transferAdventurer,
 }: AdventurerListCardProps) => {
   const { account, address } = useAccount();
+  const { provider } = useProvider();
+  const starknetIdNavigator = new StarknetIdNavigator(
+    provider,
+    constants.StarknetChainId.SN_MAIN
+  );
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [transferAddress, setTransferAddress] = useState("");
+  const [validAddress, setValidAddress] = useState<string | false>(false);
+  const [subdomain, setSubdomain] = useState(".ctrl");
+  const [resolvedAddresses, setResolvedAddresses] = useState<{
+    ctrl: string | null;
+    starknetId: string | null;
+  }>({
+    ctrl: null,
+    starknetId: null,
+  });
 
   const setAdventurer = useAdventurerStore((state) => state.setAdventurer);
 
-  const validAddress = (() => {
-    const paddedAddress = padAddress(transferAddress.toLowerCase());
-    if (paddedAddress.length !== 66 || !transferAddress.startsWith("0x")) {
-      return false;
-    }
-    try {
-      return validateAndParseAddress(paddedAddress);
-    } catch {
-      return false;
-    }
-  })();
+  useEffect(() => {
+    const validateAddress = async () => {
+      try {
+        // Try to resolve Starknet ID with .ctrl
+        const ctrlId = transferAddress + ".ctrl.stark";
+        const ctrlAddress = await starknetIdNavigator.getAddressFromStarkName(
+          ctrlId
+        );
+
+        // Try to resolve Starknet ID without subdomain
+        const starknetId = transferAddress + ".stark";
+        const starknetIdAddress =
+          await starknetIdNavigator.getAddressFromStarkName(starknetId);
+
+        setResolvedAddresses({
+          ctrl: ctrlAddress || null,
+          starknetId: starknetIdAddress || null,
+        });
+
+        // Set validAddress based on the current subdomain
+        if (
+          subdomain === ".ctrl" &&
+          ctrlAddress &&
+          !transferAddress.startsWith("0x")
+        ) {
+          setValidAddress(ctrlAddress);
+        } else if (
+          subdomain === "" &&
+          starknetIdAddress &&
+          !transferAddress.startsWith("0x")
+        ) {
+          setValidAddress(starknetIdAddress);
+        } else {
+          // If not a Starknet ID, validate as a regular address
+          const paddedAddress = padAddress(transferAddress.toLowerCase());
+          if (paddedAddress.length === 66 && transferAddress.startsWith("0x")) {
+            const parsedAddress = validateAndParseAddress(paddedAddress);
+            setValidAddress(parsedAddress);
+          } else {
+            setValidAddress(false);
+          }
+        }
+      } catch {
+        setValidAddress(false);
+        setResolvedAddresses({ ctrl: null, starknetId: null });
+      }
+    };
+
+    validateAddress();
+  }, [transferAddress, subdomain, starknetIdNavigator]);
 
   const addToCalls = useTransactionCartStore((state) => state.addToCalls);
 
@@ -82,7 +141,44 @@ export const AdventurerListCard = ({
           {isTransferOpen && (
             <>
               <div className="absolute bottom-20 bg-terminal-black border border-terminal-green flex flex-col gap-2 items-center justify-center w-3/4 p-2">
-                <span className="uppercase text-2xl">Enter Address</span>
+                <div className="flex flex-row items-center justify-between w-full">
+                  <div className="w-1/4"></div>
+                  <span className="uppercase text-2xl text-center flex-grow">
+                    Enter Address
+                  </span>
+                  <span className="flex flex-row w-1/4 justify-end gap-2">
+                    <Button
+                      onClick={() => setSubdomain(".ctrl")}
+                      variant={
+                        subdomain === ".ctrl" || resolvedAddresses.ctrl
+                          ? "default"
+                          : "ghost"
+                      }
+                      className={
+                        subdomain !== ".ctrl" && resolvedAddresses.ctrl
+                          ? "animate-pulse"
+                          : ""
+                      }
+                    >
+                      <CartridgeIcon className="w-6 h-6" />
+                    </Button>
+                    <Button
+                      onClick={() => setSubdomain("")}
+                      variant={
+                        subdomain === "" || resolvedAddresses.starknetId
+                          ? "default"
+                          : "ghost"
+                      }
+                      className={
+                        subdomain !== "" && resolvedAddresses.starknetId
+                          ? "animate-pulse"
+                          : ""
+                      }
+                    >
+                      <StarknetIdIcon className="w-6 h-6" />
+                    </Button>
+                  </span>
+                </div>
                 <div className="flex flex-col w-full items-center justify-center gap-10">
                   <input
                     type="text"
@@ -101,14 +197,15 @@ export const AdventurerListCard = ({
                   <div className="flex flex-row gap-2 items-center">
                     <Button
                       size={"lg"}
-                      onClick={() =>
+                      onClick={() => {
                         transferAdventurer(
                           account!,
                           adventurer?.id!,
                           address!,
-                          transferAddress
-                        )
-                      }
+                          validAddress as string
+                        );
+                        setIsTransferOpen(false);
+                      }}
                       disabled={!validAddress}
                     >
                       Send
@@ -116,7 +213,10 @@ export const AdventurerListCard = ({
                     <Button
                       size={"lg"}
                       variant={"ghost"}
-                      onClick={() => handleAddTransferTx(transferAddress)}
+                      onClick={() => {
+                        handleAddTransferTx(transferAddress);
+                        setIsTransferOpen(false);
+                      }}
                       disabled={!validAddress}
                     >
                       Add to Cart

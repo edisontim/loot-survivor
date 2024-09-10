@@ -113,8 +113,8 @@ export const Spawn = ({
     // Loop through contract calls to see if the token is usable, if none then return 0
     for (let tokenId of tokenIds) {
       const canPlay = await gameContract.call(
-        "can_play",
-        CallData.compile([tokenId.toString(), "0"])
+        "free_game_available",
+        CallData.compile(["0", tokenId.toString()])
       );
       if (canPlay) {
         setUsableToken(tokenId.toString());

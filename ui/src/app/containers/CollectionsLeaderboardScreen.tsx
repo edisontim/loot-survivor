@@ -1,12 +1,11 @@
-import { useMemo } from "react";
-import { formatXP } from "@/app/lib/utils";
-import { collectionData } from "@/app/lib/constants";
+import React, { useMemo } from "react";
+import { formatXP, padAddress } from "@/app/lib/utils";
+import { collectionData, maxGamesPlayable } from "@/app/lib/constants";
 import { useQuery } from "@apollo/client";
 import { getCollectionsTotals } from "@/app/hooks/graphql/queries";
 import { gameClient } from "@/app/lib/clients";
 import { networkConfig } from "@/app/lib/networkConfig";
 import useUIStore from "@/app/hooks/useUIStore";
-import { padAddress } from "@/app/lib/utils";
 
 interface CollectionTotal {
   xp: number;
@@ -59,8 +58,6 @@ export default function CollectionsLeaderboardScreen() {
     ...mergedCollections.map((score: any) => score.xp)
   );
 
-  const maxGamesPlayable = 1600; // Set this to the maximum possible XP
-
   return (
     <div className="flex flex-col h-full w-full">
       <h3 className="text-center uppercase">Collection Scores</h3>
@@ -72,8 +69,6 @@ export default function CollectionsLeaderboardScreen() {
     </div>
   );
 }
-
-import React from "react";
 
 interface ScoreData {
   avatar: string;
@@ -209,7 +204,7 @@ const ScoreGraph: React.FC<ScoreGraphProps> = ({
         </div>
         <div className="flex items-center">
           <div className="w-8 h-4 bg-terminal-yellow mr-2"></div>
-          <span>GAMES PLAYED</span>
+          <span>GAMES CLAIMED</span>
         </div>
       </div>
     </div>

@@ -467,7 +467,7 @@ export default function BeastScreen({
 
                     <Button
                       className="hidden sm:flex bg-terminal-green-75"
-                      onClick={() => showBattleDialog(true)}
+                      onClick={() => showFleeDialog(true)}
                       size={"xxs"}
                     >
                       Details

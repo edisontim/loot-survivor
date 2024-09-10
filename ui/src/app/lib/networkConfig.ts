@@ -49,7 +49,7 @@ export const networkConfig = {
     rendererAddress: "0x0",
     appUrl: "https://lootsurvivor.io/",
     beastsViewer:
-      "https://market.realms.world/collection/0x0158160018d590d93528995b340260e65aedd76d28a686e9daa5c4e8fad0c5dd",
+      "https://market.realms.world/token/0x0158160018d590d93528995b340260e65aedd76d28a686e9daa5c4e8fad0c5dd",
     goldenTokenMintUrl: "https://realms.world/collection/goldenToken",
     blockExplorerUrl: "https:/voyager.online/",
     faucetUrl: "https://blastapi.io/faucets/starknet-sepolia-eth",
@@ -63,7 +63,7 @@ export const networkConfig = {
     tokensGQLURL: "",
     ethAddress: "0x0",
     gameAddress:
-      "0x05ec4932f55a9f35a9e05a3062ecd6ebfb085855f2c7968e4e6a0699a28cefbf",
+      "0x02801ab0118474bbab2f6d4b782d6a50c886d21de9d1f5a345f462f9a5e7f353",
     lordsAddress: "0x0",
     beastsAddress: "0x0",
     goldenTokenAddress: "0x0",
@@ -76,9 +76,9 @@ export const networkConfig = {
     blockExplorerUrl: "",
     faucetUrl: "",
     masterAccount:
-      "0x5c84d31976a25d632deee7a1ed9bdbdc6795cb288103d7d601841030c976ee",
+      "0xb3ff441a68610b30fd5e2abbf3a1548eb6ba6f3559f2862bf2dc757e5828ca",
     masterPrivateKey:
-      "0x22ab3e9b8c4fdf2c187609cb52550424675bb8fc7ee8c06b0fc170e56889ec0",
+      "0x2bbf4f9fd0bbb2e60b0316c1fe0b76cf7a4d0198bd493ced9b8df2a3a24d68a",
     accountClassHash:
       "0x5400e90f7e0ae78bd02c77cd75527280470e2fe19c54970dd79dc37a9d3645c",
   },

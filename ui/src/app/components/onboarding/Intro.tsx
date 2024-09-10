@@ -67,8 +67,10 @@ const Intro = () => {
                   setLoginScreen(true);
                   setNetwork(network! as Network);
                 }}
+                disabled={true}
               >
-                Play on {network}
+                {/* Play on {network} */}
+                Starting Soon
               </Button>
             </div>
           </div>
@@ -86,7 +88,6 @@ const Intro = () => {
                   handleOnboarded();
                   setNetwork("katana");
                 }}
-                disabled={true}
               >
                 Play on Testnet
               </Button>

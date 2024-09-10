@@ -1057,17 +1057,17 @@ function critical_hit_bonus(
 function weapon_special_bonus(
   damage: number,
   weapon: Item,
-  beast: Beast,
-  ring: Item | undefined,
-  entropy: bigint
+  beast: any,
+  ring: Item | undefined
 ): number {
+  console.log(beast);
   let special2_bonus =
-    weapon.special2 && weapon.special2 === beast.specialName
-      ? Math.floor(damage * (Number(entropy % BigInt(4)) + 4))
+    weapon.special2 && weapon.special2 === beast.special2
+      ? Math.floor(damage * 8)
       : 0;
   let special3_bonus =
-    weapon.special3 && weapon.special3 === beast.specialName
-      ? Math.floor(damage / 4) * (Number(entropy % BigInt(4)) + 1)
+    weapon.special3 && weapon.special3 === beast.special3
+      ? Math.floor(damage * 2)
       : 0;
 
   let total_bonus = special2_bonus + special3_bonus;
@@ -1110,13 +1110,7 @@ function calculateDamage(
       weapon_type,
       beast_armor
     );
-    special_bonus = weapon_special_bonus(
-      elemental_damage,
-      weapon,
-      beast,
-      ring,
-      entropy
-    );
+    special_bonus = weapon_special_bonus(elemental_damage, weapon, beast, ring);
   } else {
     elemental_damage = Math.floor(base_attack * 1.5);
   }
