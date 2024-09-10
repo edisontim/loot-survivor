@@ -143,6 +143,7 @@ trait IGame<TContractState> {
     fn is_launch_tournament_active(self: @TContractState) -> bool;
     fn get_launch_tournament_winner(self: @TContractState) -> ContractAddress;
     fn get_launch_tournament_end_time(self: @TContractState) -> u64;
+    fn get_start_time(self: @TContractState) -> u64;
 }
 
 #[starknet::interface]

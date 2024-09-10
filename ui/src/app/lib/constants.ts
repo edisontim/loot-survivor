@@ -84,7 +84,7 @@ export const collectionData = [
   {
     avatar: "/collections/Ducks-Everywhere.png",
     name: "Ducks Everywhere",
-    token: "0x04fa864a706e3403fd17ac8df307f22eafa21b778b73353abf69a622e47a2003",
+    token: "0x058949fa2955b10b3a82521934e8b0505dc0b7ba929c3049622ae91d2c52e194",
   },
   {
     avatar: "/collections/Everai.png",

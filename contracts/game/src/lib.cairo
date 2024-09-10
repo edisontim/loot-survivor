@@ -1282,6 +1282,11 @@ mod Game {
         fn get_launch_tournament_end_time(self: @ContractState) -> u64 {
             _launch_tournament_end_time(self)
         }
+        fn get_start_time(self: @ContractState) -> u64 {
+            let genesis_timestamp = self._genesis_timestamp.read();
+            let start_delay = self._start_delay_seconds.read();
+            genesis_timestamp + start_delay
+        }
     }
 
     // ------------------------------------------ //
