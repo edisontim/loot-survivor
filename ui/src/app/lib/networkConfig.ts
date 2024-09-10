@@ -51,7 +51,7 @@ export const networkConfig = {
     beastsViewer:
       "https://market.realms.world/token/0x0158160018d590d93528995b340260e65aedd76d28a686e9daa5c4e8fad0c5dd",
     goldenTokenMintUrl: "https://realms.world/collection/goldenToken",
-    blockExplorerUrl: "https:/voyager.online/",
+    blockExplorerUrl: "https://voyager.online/",
     faucetUrl: "https://blastapi.io/faucets/starknet-sepolia-eth",
     masterAccount: "0x0",
     masterPrivateKey: "0x0",

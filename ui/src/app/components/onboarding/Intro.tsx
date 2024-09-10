@@ -67,10 +67,8 @@ const Intro = () => {
                   setLoginScreen(true);
                   setNetwork(network! as Network);
                 }}
-                disabled={true}
               >
-                {/* Play on {network} */}
-                Starting Soon
+                Play on {network}
               </Button>
             </div>
           </div>
