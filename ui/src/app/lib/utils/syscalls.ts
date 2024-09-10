@@ -412,7 +412,6 @@ export function createSyscalls({
     freeVRF: boolean,
     costToPlay?: number
   ) => [
-    ...spawnCalls,
     ...(freeVRF
       ? []
       : [
@@ -426,11 +425,13 @@ export function createSyscalls({
             ],
           },
         ]),
+
     {
       contractAddress: lordsContract?.address ?? "",
       entrypoint: "approve",
       calldata: [gameContract?.address ?? "", costToPlay!.toString(), "0"],
     },
+    ...spawnCalls,
   ];
 
   const handleInsufficientFunds = (currency: "eth" | "lords") => {
