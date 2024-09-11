@@ -1060,7 +1060,6 @@ function weapon_special_bonus(
   beast: any,
   ring: Item | undefined
 ): number {
-  console.log(beast);
   let special2_bonus =
     weapon.special2 && weapon.special2 === beast.special2
       ? Math.floor(damage * 8)
