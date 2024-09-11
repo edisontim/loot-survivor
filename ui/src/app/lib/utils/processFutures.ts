@@ -1380,6 +1380,8 @@ export function simulateBattle(
       adventurer?.level
     );
 
+    console.log(`Beast Attack (Beast health: ${beastHealth})): `, beastCounter)
+
     events.push({
       type: "beast_attack",
       totalDamage: beastCounter.damage,
