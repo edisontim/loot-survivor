@@ -68,7 +68,7 @@ export function getPurchaseItemsObjects(
   gameData: GameData
 ): ItemPurchaseObject[] {
   const purchaseItemsObjects = purchaseItems
-    .filter((item) => item.equip)
+    .filter((item) => item.equip === "1")
     .map((item) => {
       const itemName = gameData.ITEMS[Number(item.item)];
       return getItemData(itemName);
