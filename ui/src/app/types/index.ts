@@ -231,6 +231,7 @@ export interface ItemPurchaseObject {
   tier: number;
   type: string;
   slot: string;
+  equip: boolean;
 }
 
 export interface UpgradeStats {

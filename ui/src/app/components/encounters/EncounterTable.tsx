@@ -209,14 +209,17 @@ const EncounterTable = () => {
                                   const tier = gameData.ITEMS[
                                     encounter.tier
                                   ].replace(/\s+/g, "");
+
                                   return (
                                     <div className="flex items-center">
-                                      {` T${gameData.ITEM_TIERS[tier]}`}
+                                      
+                                      {gameData.ITEM_TYPES[encounter.tier]}
                                       <LootIcon
                                         type={gameData.ITEM_SLOTS[tier]}
                                         size={"w-4"}
-                                        className="pl-0.5 mt-0.5 self-center h-4 fill-current text-terminal-yellow"
+                                        className="p-0.5 mt-0.5 self-center h-4 fill-current text-terminal-yellow"
                                       />
+                                      {` T${gameData.ITEM_TIERS[tier]} `}
                                     </div>
                                   );
                                 })()
