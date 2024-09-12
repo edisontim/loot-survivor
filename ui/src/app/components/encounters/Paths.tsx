@@ -15,7 +15,7 @@ import useAdventurerStore from "@/app/hooks/useAdventurerStore";
 import { useQueriesStore } from "@/app/hooks/useQueryStore";
 import useUIStore from "@/app/hooks/useUIStore";
 import { GameData } from "@/app/lib/data/GameData";
-import { calculateLevel, getItemData } from "@/app/lib/utils";
+import { calculateLevel, getItemData, getPotionPrice } from "@/app/lib/utils";
 import { Step } from "@/app/lib/utils/processFutures";
 import { Item } from "@/app/types";
 import React, { useMemo, useState } from "react";
@@ -424,7 +424,12 @@ const Paths = () => {
                               {
                                 <span className="flex flex-row items-center text-terminal-yellow">
                                   <CoinIcon className="h-4 fill-current text-terminal-yellow" />
-                                  {nextAdventurerState.gold}
+                                  {nextAdventurerState.gold! -
+                                    potionAmount *
+                                      getPotionPrice(
+                                        adventurer.level!,
+                                        adventurer.charisma!
+                                      )}
                                 </span>
                               }
                             </span>
