@@ -67,12 +67,14 @@ export function getPurchaseItemsObjects(
   purchaseItems: ItemPurchase[],
   gameData: GameData
 ): ItemPurchaseObject[] {
-  const purchaseItemsObjects = purchaseItems
-    .filter((item) => item.equip === "1")
-    .map((item) => {
-      const itemName = gameData.ITEMS[Number(item.item)];
-      return getItemData(itemName);
-    });
+  const purchaseItemsObjects = purchaseItems.map((item) => {
+    const itemName = gameData.ITEMS[Number(item.item)];
+    const itemData = getItemData(itemName);
+    return {
+      ...itemData,
+      equip: item.equip === "1",
+    };
+  });
 
   return purchaseItemsObjects;
 }
@@ -97,9 +99,9 @@ export function getItems(
       })) || [];
 
   let updatedItems: Item[] = equippedItems.map((item: any) => {
-    const purchaseItem = purchaseItemsObjects.find(
-      (purchaseItem) => purchaseItem.slot === item.slot
-    );
+    const purchaseItem = purchaseItemsObjects
+      .filter((item) => item.equip)
+      .find((purchaseItem) => purchaseItem.slot === item.slot);
     if (purchaseItem) {
       return {
         ...purchaseItem,
@@ -123,8 +125,6 @@ export function getItems(
   });
 
   return updatedItems;
-  // }, [data.itemsByAdventurerQuery?.items, purchaseItemsObjects]);
-  // return items;
 }
 
 export function getPaths(
@@ -135,11 +135,6 @@ export function getPaths(
   data: QueryData,
   hasBeast: boolean
 ) {
-  // const purchaseItems = useUIStore((state) => state.purchaseItems);
-  // const hasBeast = useAdventurerStore((state) => state.computed.hasBeast);
-  // const items = getItems(purchaseItems, data, gameData);
-
-  // const outcomesWithPath = useMemo(() => {
   if (!updatedAdventurer || !items) return [];
   const decisionTree = getDecisionTree(
     updatedAdventurer!,
@@ -152,7 +147,4 @@ export function getPaths(
     (a, b) =>
       b[b.length - 1].adventurer.health! - a[a.length - 1].adventurer.health!
   );
-  // }, [updatedAdventurer?.xp, adventurerEntropy, items]);
-
-  // return outcomesWithPath;
 }
