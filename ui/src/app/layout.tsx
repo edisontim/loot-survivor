@@ -1,21 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ApolloProvider } from "@apollo/client";
 import { ControllerProvider } from "@/app/context/ControllerContext";
-import { gameClient, goldenTokenClient } from "@/app/lib/clients";
-import useUIStore from "@/app/hooks/useUIStore";
-import { StarknetProvider } from "@/app/provider";
 import { DojoProvider } from "@/app/dojo/DojoContext";
 import { setup } from "@/app/dojo/setup";
-import LoginIntro from "@/app/components/onboarding/Intro";
+import useUIStore from "@/app/hooks/useUIStore";
+import { gameClient, goldenTokenClient } from "@/app/lib/clients";
+import { StarknetProvider } from "@/app/provider";
+import { ApolloProvider } from "@apollo/client";
+import { useEffect, useState } from "react";
+// import LoginIntro from "@/app/components/onboarding/Intro";
 import Intro from "@/app/components/intro/Intro";
 import "@/app/globals.css";
-import { BurnerManager } from "@dojoengine/create-burner";
-import { RpcProvider } from "starknet";
 import Head from "@/app/head";
+import { BurnerManager } from "@dojoengine/create-burner";
 import { Analytics } from "@vercel/analytics/react";
-import BurnerLoader from "@/app/components/animations/BurnerLoader";
+import { RpcProvider } from "starknet";
+// import BurnerLoader from "@/app/components/animations/BurnerLoader";
+import { Redirect } from "./components/onboarding/Redirect";
 import { networkConfig } from "./lib/networkConfig";
 
 type SetupResult = {
@@ -74,8 +75,9 @@ export default function RootLayout({
           >
             {introComplete ? (
               <>
-                <LoginIntro />
-                {createBurner && <BurnerLoader />}
+                <Redirect />
+                {/* <LoginIntro /> */}
+                {/* {createBurner && <BurnerLoader />} */}
               </>
             ) : (
               <Intro onIntroComplete={handleIntroComplete} />
