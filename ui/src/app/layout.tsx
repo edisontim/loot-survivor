@@ -36,7 +36,7 @@ export default function RootLayout({
   const network = useUIStore((state) => state.network);
   const [introComplete, setIntroComplete] = useState(false);
   const [setupResult, setSetupResult] = useState<SetupResult | null>(null);
-  const [createBurner, setCreateBurner] = useState(false);
+  const [_, setCreateBurner] = useState(false);
 
   const handleIntroComplete = () => {
     setIntroComplete(true);
